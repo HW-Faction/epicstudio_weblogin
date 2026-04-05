@@ -485,7 +485,7 @@ export default function ProjectMilestones() {
             <h3 className="mb-3 font-medium">Add Scope</h3> 
             <input className="border p-2 w-full mb-3" placeholder="Scope name" value={newScope} onChange={(e) => { 
                 setNewScope(e.target.value) 
-                scopes = [...scopes, newScope] 
+                //scopes = [...scopes, newScope] 
                 }} />
                  <div className="flex justify-end gap-3"> 
                     <button onClick={() => setScopeModal(false)}> Cancel </button> <button onClick={handleAddScope} className="bg-primary text-white px-4 py-2 rounded" > Add </button> </div> </div> </div> )}
