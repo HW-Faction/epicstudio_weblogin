@@ -8,6 +8,9 @@ import ProjectDetails from "./pages/ProjectDetails";
 import SiteProgress from "./pages/SiteProgress";
 import ProjectMilestones from "./pages/ProjectMilestones";
 import ProjectOverview from "./pages/ProjectOverview";
+import ProjectPayments from "./pages/ProjectPayments";
+import ProjectCommunication from "./pages/ProjectCommunication";
+import ProjectQuotation from "./pages/ProjectQuotation";
 
 function Dashboard() {
   return <div>Dashboard</div>;
@@ -27,7 +30,7 @@ export default function App() {
           element={
             <ProtectedRoute>
               <AppLayout>
-                <Dashboard />
+                <Projects />
               </AppLayout>
             </ProtectedRoute>
           }
@@ -80,6 +83,36 @@ export default function App() {
     <ProtectedRoute>
       <AppLayout>
         <ProjectOverview />
+      </AppLayout>
+    </ProtectedRoute>
+  }
+/>
+<Route
+  path="/projects/:id/payments"
+  element={
+    <ProtectedRoute>
+      <AppLayout>
+        <ProjectPayments />
+      </AppLayout>
+    </ProtectedRoute>
+  }
+/>
+<Route
+  path="/projects/:id/comms"
+  element={
+    <ProtectedRoute>
+      <AppLayout>
+        <ProjectCommunication />
+      </AppLayout>
+    </ProtectedRoute>
+  }
+/>
+<Route
+  path="/projects/:id/quotation"
+  element={
+    <ProtectedRoute>
+      <AppLayout>
+        <ProjectQuotation />
       </AppLayout>
     </ProtectedRoute>
   }

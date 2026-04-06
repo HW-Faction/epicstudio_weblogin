@@ -235,14 +235,45 @@ export default function ProjectMilestones() {
       <h1 className="text-2xl font-semibold mb-4">Project Milestones</h1>
 
       {/* STATS */}
-      <div className="grid grid-cols-4 gap-4 mb-5">
-        {[["Total", total], ["Completed", completed], ["In Progress", inProgress], ["Not Started", notStarted]].map(([l, v]) => (
-          <div key={l} className="bg-white p-3 rounded shadow text-center">
-            <p className="text-xs text-gray-500">{l}</p>
-            <p className="font-semibold">{v}</p>
-          </div>
-        ))}
-      </div>
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-5">
+
+  {/* TOTAL */}
+  <StatCard
+    label="Total"
+    value={total}
+    icon="📊"
+    color="gray"
+    sub="All milestones"
+  />
+
+  {/* COMPLETED */}
+  <StatCard
+    label="Completed"
+    value={completed}
+    icon="✅"
+    color="green"
+    sub="Finished work"
+  />
+
+  {/* IN PROGRESS */}
+  <StatCard
+    label="In Progress"
+    value={inProgress}
+    icon="⏳"
+    color="yellow"
+    sub="Ongoing"
+  />
+
+  {/* NOT STARTED */}
+  <StatCard
+    label="Not Started"
+    value={notStarted}
+    icon="🕒"
+    color="red"
+    sub="Pending"
+  />
+
+</div>
 
       {/* FILTERS */}
       <div className="flex gap-3 mb-5">
@@ -492,3 +523,30 @@ export default function ProjectMilestones() {
     </div>
   );
 }
+
+const StatCard = ({ label, value, icon, color, sub }) => {
+  const colors = {
+    gray: "border-gray-200 text-gray-700 bg-gray-50",
+    green: "border-green-100 text-green-600 bg-green-50",
+    yellow: "border-yellow-100 text-yellow-600 bg-yellow-50",
+    red: "border-red-100 text-red-500 bg-red-50",
+  };
+
+  return (
+    <div className={`bg-white border rounded-2xl p-4 shadow-sm hover:shadow-md transition ${colors[color]}`}>
+
+      {/* TOP */}
+      <div className="flex items-center justify-between mb-2">
+        <span className="text-sm text-gray-500">{label}</span>
+        <span className="text-lg">{icon}</span>
+      </div>
+
+      {/* VALUE */}
+      <h2 className="text-2xl font-semibold">{value}</h2>
+
+      {/* SUBTEXT */}
+      <p className="text-xs text-gray-400 mt-1">{sub}</p>
+
+    </div>
+  );
+};

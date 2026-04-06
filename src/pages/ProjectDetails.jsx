@@ -35,9 +35,9 @@ export default function ProjectDetails() {
             Project Data
           </h1>
 
-          <button className="bg-primary text-white px-4 py-2 rounded">
+          {/* <button className="bg-primary text-white px-4 py-2 rounded">
             View Progress Report
-          </button>
+          </button> */}
         </div>
 
         <p className="text-sm text-gray-600 mb-4">
@@ -112,9 +112,9 @@ export default function ProjectDetails() {
 
 const FEATURES = [
   { label: "Basic Details", icon: "👤", path: "overview"},
-  { label: "Quotation Generator", icon: "🧾" , path: "ouotation"},
+  { label: "Quotation Generator", icon: "🧾" , path: "quotation"},
   { label: "Project Management", icon: "📊", path: "milestones"},
-  { label: "Project Payments", icon: "💰" },
+  { label: "Project Payments", icon: "💰", path: "payments" },
   { label: "Site Progress Uploads", icon: "📸", path: "site-progress" },
-  { label: "Communication", icon: "💬", path: "Comms" },
+  { label: "Communication", icon: "💬", path: "comms" },
 ];
