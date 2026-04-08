@@ -2,19 +2,20 @@
     import { useParams } from "react-router-dom";
 
     import {
-    collection,
-    addDoc,
-    getDocs,
-    doc,
-    updateDoc,
-    deleteDoc,
+      collection,
+      addDoc,
+      getDocs,
+      doc,
+      updateDoc,
+      deleteDoc,
+      setDoc
     } from "firebase/firestore";
 
     import {
-    getStorage,
-    ref,
-    uploadBytes,
-    getDownloadURL,
+      getStorage,
+      ref,
+      uploadBytes,
+      getDownloadURL,
     } from "firebase/storage";
 
     import { db } from "../firebase"; // your existing config
@@ -52,31 +53,32 @@
         const updated = calculateQuotation(q);
 
         if (q.isExisting) {
-        const docRef = doc(db, "projects", projectId, "quotations", q.id);
+            const docRef = doc(db, "projects", projectId, "quotations", q.id);
 
-        await updateDoc(docRef, {
-            ...updated,
-            version: (q.version || 1) + 1,
-            updatedAt: Date.now(),
-        });
+            await updateDoc(docRef, {
+                ...updated,
+                version: (q.version || 1) + 1,
+                updatedAt: Date.now(),
+            });
         } else {
-        const docRef = await addDoc(quotationRef, {
-            ...updated,
-            createdAt: Date.now(),
-            updatedAt: Date.now(),
-            version: 1,
-            createdBy: "You",
-            state: "Created",
-        });
+            const docRef = doc(collection(db, "projects", projectId, "quotations"));
 
-        updated.id = docRef.id;
+            await setDoc(docRef, {
+              ...updated,
+              id: docRef.id, // ✅ store ID inside document
+              createdAt: Date.now(),
+              updatedAt: Date.now(),
+              version: 1,
+              createdBy: "You",
+              state: "Created",
+            });
         }
 
         await fetchQuotations();
         setScreen("list");
     }
 
-    const handleSave = async () => {
+  const handleSave = async () => {
   let attachments = [];
 
   // keep old attachments
@@ -115,25 +117,37 @@
       ? { ...cleaned, fundReceipt: attachments }
       : { ...cleaned, expenseReceipt: attachments };
 
-  const path = `projects/${id}/${tab.toLowerCase()}`;
+      const path = `projects/${id}/${tab.toLowerCase()}`;
 
-  if (editing) {
-    await updateDoc(doc(db, path, editing.id), payload);
-  } else {
-    await addDoc(collection(db, path), payload);
-  }
+      if (editing) {
+        await updateDoc(doc(db, path, editing.id), payload);
+      } else {
+        await addDoc(collection(db, path), payload);
+      }
 
-  setModalOpen(false);
-  setForm({});
-  setEditing(null);
+      setModalOpen(false);
+      setForm({});
+      setEditing(null);
 
-  fetchAll();
-};
+      fetchAll();
+    };
     /* ================= DELETE ================= */
 
     async function deleteQuotation(id) {
-        await deleteDoc(doc(db, "projects", projectId, "quotations", id));
-        fetchQuotations();
+      if (!id) {
+        console.error("Invalid quotation ID");
+        console.error("q: " + q.name);
+        return;
+      }
+
+      const confirmDelete = window.confirm("Delete quotation?");
+      if (!confirmDelete) return;
+
+      await deleteDoc(
+        doc(db, "projects", projectId, "quotations", id)
+      );
+
+      fetchQuotations();
     }
 
     /* ================= UI ================= */
@@ -205,6 +219,7 @@
                             className="text-blue-500 text-sm"
                             onClick={() => {
                                 setSelected(q);
+                                //console.log("selected: " + q. )
                                 setScreen("editor");
                             }}
                             >
@@ -490,8 +505,8 @@
 
     function calculateItemTotal(item) {
     if (item.pricingType === "PER_AREA") return item.price * item.area;
-    if (item.pricingType === "PER_UNIT") return item.price * item.quantity;
-    return item.price;
+    else return item.price * item.quantity;
+    //return item.price ;
     }
 
     function calculateQuotation(q) {
