@@ -284,6 +284,13 @@
             className="border p-2 w-full my-4 rounded"
             placeholder="Quotation Name"
         />
+        <input
+            value={q.description}
+            onChange={(e) => setQ({ ...q, description: e.target.value })}
+            className="border p-2 w-full my-4 rounded"
+            placeholder="Quotation Description"
+        />
+
 
         {/* ITEMS */}
         <div className="bg-white p-4 rounded-xl shadow">
@@ -307,6 +314,11 @@
                 value={item.name}
                 onChange={(e) => updateItem(item.id, { name: e.target.value })}
                 className="border p-1"
+                />
+                <input
+                value={item.description}
+                onChange={(e) => updateItem(item.id, { description: e.target.value })}
+                className="border"
                 />
 
                 <input
@@ -378,15 +390,16 @@
     /* ================= ITEM ================= */
 
     function ItemDialog({ onClose, onAdd, storage }) {
-  const [item, setItem] = useState({
-    id: Date.now(),
-    name: "",
-    category: "",
-    price: 0,
-    quantity: 1,
-    total: 0,
-    imageUrl: "",
-  });
+      const [item, setItem] = useState({
+          id: Date.now(),
+          name: "",
+          description: "",
+          category: "",
+          price: 0,
+          quantity: 1,
+          total: 0,
+          imageUrl: "",
+      });
 
   async function uploadImage(file) {
     const storageRef = ref(
@@ -433,6 +446,12 @@
             placeholder="Item Name"
             className="border p-2 w-full rounded"
             onChange={(e) => setItem({ ...item, name: e.target.value })}
+          />
+
+          <input
+            placeholder="Item Description"
+            className="border p-2 w-full rounded"
+            onChange={(e) => setItem({ ...item, description: e.target.value })}
           />
 
           <input
