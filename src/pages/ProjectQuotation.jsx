@@ -1,534 +1,472 @@
-    import { useEffect, useState } from "react";
-    import { useParams } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { useParams } from "react-router-dom";
+import {
+  collection,
+  getDocs,
+  doc,
+  updateDoc,
+  deleteDoc,
+  setDoc,
+} from "firebase/firestore";
+import { db } from "../firebase";
+import { storage } from "../firebase";
+import {
+  getStorage,
+  ref,
+  uploadBytes,
+  getDownloadURL,
+} from "firebase/storage";
 
-    import {
-      collection,
-      addDoc,
-      getDocs,
-      doc,
-      updateDoc,
-      deleteDoc,
-      setDoc
-    } from "firebase/firestore";
+/* ================= DEFAULTS ================= */
 
-    import {
-      getStorage,
-      ref,
-      uploadBytes,
-      getDownloadURL,
-    } from "firebase/storage";
+const DEFAULT_COMPANY = {
+  name: "EPIC STUDIO",
+  address: "502/503, 5th FLOOR, CONSCIENT ONE MALL, SECTOR 109, GURGAON",
+  phone: "9871820064",
+  gst: "06AAICE7957M1ZX",
+  logo: "", // add URL if needed
+};
 
-    import { db } from "../firebase"; // your existing config
+const DEFAULT_BANK = {
+  accountName: "EPIC-STUDIO INTERIOR DESIGN PRIVATE LIMITED",
+  accountNumber: "589505000033",
+  ifsc: "ICIC0005895",
+  bankName: "ICICI BANK",
+  branch: "SHOBHA CITY, SEC-108, GURUGRAM",
+};
 
-    export default function ProjectQuotation() {
-    const { id: projectId } = useParams();
+const DEFAULT_TERMS = [
+  "This quotation is valid for 30 days from the date of issue.",
+  "Taxes (GST) included as mentioned.",
+  "Changes after finalization will be charged additionally.",
+];
 
-    const [screen, setScreen] = useState("list");
-    const [quotations, setQuotations] = useState([]);
-    const [selected, setSelected] = useState(null);
+/* ================= MAIN ================= */
 
-    const storage = getStorage();
+export default function ProjectQuotation() {
+  const { id: projectId } = useParams();
 
-    const quotationRef = collection(db, "projects", projectId, "quotations");
+  const [screen, setScreen] = useState("list");
+  const [quotations, setQuotations] = useState([]);
+  const [selected, setSelected] = useState(null);
 
-    /* ================= FETCH ================= */
+  const quotationRef = collection(db, "projects", projectId, "quotations");
 
-    useEffect(() => {
-        fetchQuotations();
-    }, [projectId]);
+  useEffect(() => {
+    fetchQuotations();
+  }, [projectId]);
 
-    async function fetchQuotations() {
-        const snap = await getDocs(quotationRef);
-        const data = snap.docs.map((d) => ({
+  async function fetchQuotations() {
+    const snap = await getDocs(quotationRef);
+    setQuotations(
+      snap.docs.map((d) => ({
         id: d.id,
         ...d.data(),
         isExisting: true,
-        }));
-        setQuotations(data);
-    }
-
-    /* ================= SAVE ================= */
-
-    async function saveQuotation(q) {
-        const updated = calculateQuotation(q);
-
-        if (q.isExisting) {
-            const docRef = doc(db, "projects", projectId, "quotations", q.id);
-
-            await updateDoc(docRef, {
-                ...updated,
-                version: (q.version || 1) + 1,
-                updatedAt: Date.now(),
-            });
-        } else {
-            const docRef = doc(collection(db, "projects", projectId, "quotations"));
-
-            await setDoc(docRef, {
-              ...updated,
-              id: docRef.id, // ✅ store ID inside document
-              createdAt: Date.now(),
-              updatedAt: Date.now(),
-              version: 1,
-              createdBy: "You",
-              state: "Created",
-            });
-        }
-
-        await fetchQuotations();
-        setScreen("list");
-    }
-
-  const handleSave = async () => {
-  let attachments = [];
-
-  // keep old attachments
-  if (editing) {
-    attachments =
-      tab === "FUNDS"
-        ? editing.fundReceipt || []
-        : editing.expenseReceipt || [];
+      }))
+    );
   }
 
-  // upload new files
-  if (form.files?.length) {
-    for (let file of form.files) {
-      const path = `projects/${id}/${tab.toLowerCase()}/${Date.now()}_${file.name}`;
-      const storageRef = ref(storage, path);
+  async function saveQuotation(q) {
+    const updated = calculateQuotation(q);
 
-      await uploadBytes(storageRef, file);
-      const url = await getDownloadURL(storageRef);
+    if (q.isExisting) {
+      await updateDoc(doc(db, "projects", projectId, "quotations", q.id), {
+        ...updated,
+        version: (q.version || 1) + 1,
+        updatedAt: Date.now(),
+      });
+    } else {
+      const docRef = doc(collection(db, "projects", projectId, "quotations"));
 
-      attachments.push({
-        url,
-        fileName: file.name,
-        type: file.type.includes("pdf") ? "pdf" : "image",
-        size: file.size,
+      await setDoc(docRef, {
+        ...updated,
+        id: docRef.id,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+        version: 1,
+        state: "Created",
       });
     }
+
+    fetchQuotations();
+    setScreen("list");
   }
 
-  // 🔥 CLEAN OBJECT (IMPORTANT)
-  const cleaned = { ...form };
-  delete cleaned.id;
-  delete cleaned.files;
+  async function deleteQuotation(id) {
+    if (!window.confirm("Delete quotation?")) return;
 
-  const payload =
-    tab === "FUNDS"
-      ? { ...cleaned, fundReceipt: attachments }
-      : { ...cleaned, expenseReceipt: attachments };
-
-      const path = `projects/${id}/${tab.toLowerCase()}`;
-
-      if (editing) {
-        await updateDoc(doc(db, path, editing.id), payload);
-      } else {
-        await addDoc(collection(db, path), payload);
-      }
-
-      setModalOpen(false);
-      setForm({});
-      setEditing(null);
-
-      fetchAll();
-    };
-    /* ================= DELETE ================= */
-
-    async function deleteQuotation(id) {
-      if (!id) {
-        console.error("Invalid quotation ID");
-        console.error("q: " + q.name);
-        return;
-      }
-
-      const confirmDelete = window.confirm("Delete quotation?");
-      if (!confirmDelete) return;
-
-      await deleteDoc(
-        doc(db, "projects", projectId, "quotations", id)
-      );
-
-      fetchQuotations();
-    }
-
-    /* ================= UI ================= */
-
-    return (
-        <div className="flex">
-
-        {/* SIDEBAR */}
-        
-
-        {/* MAIN */}
-        <div className="flex-1 p-6 bg-gray-50">
-
-            {/* LIST SCREEN */}
-            {screen === "list" && (
-            <>
-                <div className="flex justify-between mb-4">
-                <h1 className="text-xl font-semibold">Quotation Generator</h1>
-
-                <button
-                    className="bg-red-500 text-white px-4 py-2 rounded-lg"
-                    onClick={() => {
-                    setSelected(newQuotation());
-                    setScreen("editor");
-                    }}
-                >
-                    + Quotation
-                </button>
-                </div>
-
-                {/* TABLE FIXED */}
-                <div className="bg-white rounded-xl shadow overflow-hidden">
-                <table className="w-full text-sm table-fixed">
-                    <thead className="bg-gray-50 text-gray-500">
-                    <tr>
-                        <th className="p-3 text-left w-[120px]">Ref</th>
-                        <th className="p-3 text-left">Name</th>
-                        <th className="p-3 w-[80px] text-center">Ver</th>
-                        <th className="p-3 w-[80px] text-center">Items</th>
-                        <th className="p-3 w-[120px] text-center">Amount</th>
-                        <th className="p-3 w-[120px]">Author</th>
-                        <th className="p-3 w-[120px]">Created</th>
-                        <th className="p-3 w-[120px]">State</th>
-                        <th className="p-3 w-[100px]">Action</th>
-                    </tr>
-                    </thead>
-
-                    <tbody>
-                    {quotations.map((q) => (
-                        <tr key={q.id} className="border-t hover:bg-gray-50">
-                        <td className="p-3">{q.ref}</td>
-                        <td className="p-3">{q.name}</td>
-                        <td className="p-3 text-center">v{q.version}</td>
-                        <td className="p-3 text-center">{q.items?.length || 0}</td>
-                        <td className="p-3 text-center font-medium">
-                            ₹ {q.finalAmount || 0}
-                        </td>
-                        <td className="p-3 text-center">{q.createdBy}</td>
-                        <td className="p-3 text-center">
-                            {new Date(q.createdAt).toLocaleDateString()}
-                        </td>
-                        <td className="p-3 text-center">
-                            <span className="px-2 py-1 bg-purple-100 text-purple-600 rounded text-xs">
-                            {q.state}
-                            </span>
-                        </td>
-                        <td className="p-3 space-x-2">
-                            <button
-                            className="text-blue-500 text-sm"
-                            onClick={() => {
-                                setSelected(q);
-                                //console.log("selected: " + q. )
-                                setScreen("editor");
-                            }}
-                            >
-                            Edit
-                            </button>
-
-                            <button
-                            className="text-red-500 text-sm"
-                            onClick={() => deleteQuotation(q.id)}
-                            >
-                            Delete
-                            </button>
-                        </td>
-                        </tr>
-                    ))}
-                    </tbody>
-                </table>
-                </div>
-            </>
-            )}
-
-            {/* EDITOR */}
-            {screen === "editor" && (
-            <Editor
-                quotation={selected}
-                onBack={() => setScreen("list")}
-                onSave={saveQuotation}
-                storage={storage}
-            />
-            )}
-        </div>
-        </div>
-    );
-    }
-
-    /* ================= EDITOR ================= */
-
-    function Editor({ quotation, onBack, onSave, storage }) {
-    const [q, setQ] = useState(quotation);
-    const [showItem, setShowItem] = useState(false);
-
-    useEffect(() => {
-  setQ(quotation);
-}, [quotation]);
-
-    const updateItem = (id, data) => {
-        const items = q.items.map((i) =>
-        i.id === id
-            ? { ...i, ...data, total: calculateItemTotal({ ...i, ...data }) }
-            : i
-        );
-        setQ({ ...q, items });
-    };
-
-    return (
-        <div>
-        <button onClick={onBack}>← Back</button>
-
-        <input
-            value={q.name}
-            onChange={(e) => setQ({ ...q, name: e.target.value })}
-            className="border p-2 w-full my-4 rounded"
-            placeholder="Quotation Name"
-        />
-        <input
-            value={q.description}
-            onChange={(e) => setQ({ ...q, description: e.target.value })}
-            className="border p-2 w-full my-4 rounded"
-            placeholder="Quotation Description"
-        />
-
-
-        {/* ITEMS */}
-        <div className="bg-white p-4 rounded-xl shadow">
-            <div className="flex justify-between mb-3">
-            <h3 className="font-medium">Items</h3>
-
-            <button
-                onClick={() => setShowItem(true)}
-                className="bg-red-500 text-white px-3 py-1 rounded"
-            >
-                + Add Item
-            </button>
-            </div>
-
-            {q.items.map((item) => (
-            <div
-                key={item.id}
-                className="grid grid-cols-7 gap-2 border-b py-2 items-center"
-            >
-                <input
-                value={item.name}
-                onChange={(e) => updateItem(item.id, { name: e.target.value })}
-                className="border p-1"
-                />
-                <input
-                value={item.description}
-                onChange={(e) => updateItem(item.id, { description: e.target.value })}
-                className="border"
-                />
-
-                <input
-                value={item.category}
-                onChange={(e) =>
-                    updateItem(item.id, { category: e.target.value })
-                }
-                className="border p-1"
-                placeholder="Category"
-                />
-
-                <input
-                type="number"
-                value={item.price}
-                onChange={(e) =>
-                    updateItem(item.id, { price: Number(e.target.value) })
-                }
-                className="border p-1"
-                />
-
-                <input
-                type="number"
-                value={item.quantity}
-                onChange={(e) =>
-                    updateItem(item.id, { quantity: Number(e.target.value) })
-                }
-                className="border p-1"
-                />
-
-                <div className="text-right">₹ {item.total}</div>
-
-                <button
-                onClick={() =>
-                    setQ({
-                    ...q,
-                    items: q.items.filter((i) => i.id !== item.id),
-                    })
-                }
-                className="text-red-500 text-sm"
-                >
-                Delete
-                </button>
-            </div>
-            ))}
-        </div>
-
-        {/* SAVE */}
-        <button
-            onClick={() => onSave(q)}
-            className="mt-4 bg-green-500 text-white px-4 py-2 rounded"
-        >
-            Save
-        </button>
-
-        {showItem && (
-            <ItemDialog
-            onClose={() => setShowItem(false)}
-            onAdd={(item) => {
-                setQ({ ...q, items: [...q.items, item] });
-                setShowItem(false);
-            }}
-            storage={storage}
-            />
-        )}
-        </div>
-    );
-    }
-
-    /* ================= ITEM ================= */
-
-    function ItemDialog({ onClose, onAdd, storage }) {
-      const [item, setItem] = useState({
-          id: Date.now(),
-          name: "",
-          description: "",
-          category: "",
-          price: 0,
-          quantity: 1,
-          total: 0,
-          imageUrl: "",
-      });
-
-  async function uploadImage(file) {
-    const storageRef = ref(
-      storage,
-      "quotationItems/" + Date.now() + "_" + file.name
-    );
-    await uploadBytes(storageRef, file);
-    return await getDownloadURL(storageRef);
+    await deleteDoc(doc(db, "projects", projectId, "quotations", id));
+    fetchQuotations();
   }
 
   return (
-    <div
-      className="fixed inset-0 bg-black/40 flex justify-center items-center z-50"
-      onClick={onClose}
-    >
-      <div
-        className="bg-white w-[700px] p-6 rounded-xl grid grid-cols-2 gap-6"
-        onClick={(e) => e.stopPropagation()}
-      >
+    <div className="p-6 bg-gray-100 min-h-screen">
+      {screen === "list" && (
+        <>
+          <div className="flex justify-between mb-4">
+            <h1 className="text-xl font-semibold">Quotation Generator</h1>
 
-        {/* LEFT */}
+            <button
+              className="bg-red-500 text-white px-4 py-2 rounded"
+              onClick={() => {
+                setSelected(newQuotation());
+                setScreen("editor");
+              }}
+            >
+              + Quotation
+            </button>
+          </div>
+
+          <div className="bg-white shadow rounded">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="bg-gray-100">
+                  <th className="p-2 text-center">Ref</th>
+                  <th className="p-2 text-center">Client</th>
+                  <th className="p-2 text-center">Version</th>
+                  <th className="p-2 text-center">Created At</th>
+                  <th className="p-2 text-center">Items Total</th>
+                  <th className="p-2 text-center">Total</th>
+                  <th className="p-2 text-center">Action</th>
+                </tr>
+              </thead>
+
+              <tbody>
+                {quotations.map((q) => (
+                  <tr key={q.id} className="border-t">
+                    <td className="text-center p-2">{q.ref}</td>
+                    <td className="text-center">{q.client?.name}</td>
+                    <td className="text-center">v{q.version}</td>
+                    <td className="text-center">{formatDate(q.createdAt)}</td>
+                    <td className="text-center">{q.items.length}</td>
+                    <td className="text-center">₹ {formatCurrency(q.summary.finalTotal) || 0}</td>
+                    <td className="text-center">
+                      <button
+                        onClick={() => {
+                          setSelected(q);
+                          setScreen("editor");
+                        }}
+                        className="text-blue-500 mr-2"
+                      >
+                        Edit
+                      </button>
+
+                      <button
+                        onClick={() => deleteQuotation(q.id)}
+                        className="text-red-500"
+                      >
+                        Delete
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </>
+      )}
+
+      {screen === "editor" && (
+        <Editor quotation={selected} onBack={() => setScreen("list")} onSave={saveQuotation} />
+      )}
+    </div>
+  );
+}
+
+/* ================= EDITOR ================= */
+
+function Editor({ quotation, onBack, onSave }) {
+  const [q, setQ] = useState(quotation);
+
+  useEffect(() => {
+    setQ(quotation);
+  }, [quotation]);
+
+  useEffect(() => {
+    setQ((prev) => calculateQuotation(prev));
+  }, [q.items]);
+
+  /* ===== FIX: recalc milestones ===== */
+  useEffect(() => {
+    if (!q.paymentPlan) return;
+
+    const updated = q.paymentPlan.map((m) => ({
+      ...m,
+      amount: ((m.percent || 0) / 100) * (q.summary.finalTotal || 0),
+    }));
+
+    setQ((prev) => ({ ...prev, paymentPlan: updated }));
+  }, [q.summary.finalTotal]);
+
+  const updateItem = (id, data) => {
+    const items = q.items.map((i) =>
+      i.id === id ? { ...i, ...data, total: calcItem(i, data) } : i
+    );
+    setQ({ ...q, items });
+  };
+
+  const addItem = () => {
+    setQ({
+      ...q,
+      items: [
+        ...q.items,
+        {
+          id: Date.now(),
+          name: "",
+          uom: "Sqft",
+          usp: 0,
+          quantity: 1,
+          discount: 0,
+          total: 0,
+        },
+      ],
+    });
+  };
+
+  const updateMilestone = (index, data) => {
+    const updated = q.paymentPlan.map((m, i) => {
+      if (i !== index) return m;
+
+      const newMilestone = { ...m, ...data };
+
+      newMilestone.amount =
+        ((newMilestone.percent || 0) / 100) *
+        (q.summary.finalTotal || 0);
+
+      return newMilestone;
+    });
+
+    setQ({ ...q, paymentPlan: updated });
+  };
+
+  const totalPercent = (q.paymentPlan || []).reduce(
+    (s, m) => s + (m.percent || 0),
+    0
+  );
+
+  const uploadLogo = async (file) => {
+    const storageRef = ref(
+      storage,
+      "quotation/logo_" + Date.now() + "_" + file.name
+    );
+
+    await uploadBytes(storageRef, file);
+    return await getDownloadURL(storageRef);
+  };
+
+  return (
+    <div id="print-area" className="bg-white p-10 max-w-5xl mx-auto text-sm">
+
+      <button onClick={onBack} className="mb-4">← Back</button>
+
+      {/* HEADER */}
+      <div className="flex justify-between border-b pb-4">
         <div>
           <input
             type="file"
             onChange={async (e) => {
               if (!e.target.files[0]) return;
-              const url = await uploadImage(e.target.files[0]);
-              setItem({ ...item, imageUrl: url });
+
+              const url = await uploadLogo(e.target.files[0]);
+
+              setQ({
+                ...q,
+                company: { ...q.company, logo: url },
+              });
             }}
+            className="text-xs mb-2"
           />
-
-          {item.imageUrl && (
-            <img
-              src={item.imageUrl}
-              className="mt-3 rounded-lg max-h-40"
-            />
+          {q.company.logo && (
+            <img src={q.company.logo} className="h-16  mb-2" />
           )}
+          <h2 className="text-xl font-bold">{q.company.name}</h2>
+          <p className="text-xs">{q.company.address}</p>
+          <p className="text-xs">GST: {q.company.gst}</p>
         </div>
 
-        {/* RIGHT */}
-        <div className="space-y-3">
+        <div className="text-right text-xs">
+          <p>Date: {new Date(q.date).toLocaleDateString()}</p>
+          <p>Ref: {q.ref}</p>
+        </div>
+      </div>
 
-          <input
-            placeholder="Item Name"
-            className="border p-2 w-full rounded"
-            onChange={(e) => setItem({ ...item, name: e.target.value })}
-          />
+      {/* CLIENT */}
+      <div className="mt-6">
+        <p className="font-semibold">Prepared For</p>
+        <input
+          value={q.client.name || ""}
+          onChange={(e) =>
+            setQ({ ...q, client: { ...q.client, name: e.target.value } })
+          }
+          className="border-b w-full"
+        />
+      </div>
 
-          <input
-            placeholder="Item Description"
-            className="border p-2 w-full rounded"
-            onChange={(e) => setItem({ ...item, description: e.target.value })}
-          />
+      {/* ITEMS */}
+      <h3 className="mt-6 font-semibold border-b pb-1">Items</h3>
 
-          <input
-            placeholder="Category"
-            className="border p-2 w-full rounded"
-            onChange={(e) => setItem({ ...item, category: e.target.value })}
-          />
+      <table className="w-full border table-fixed mt-2">
+        <thead className="bg-gray-100">
+          <tr>
+            <th className="w-[30%]">Description</th>
+            <th>UOM</th>
+            <th>USP</th>
+            <th>Qty</th>
+            <th>Disc</th>
+            <th>Total</th>
+            <th></th>
+          </tr>
+        </thead>
 
-          <input
-            type="number"
-            placeholder="Price"
-            className="border p-2 w-full rounded"
-            onChange={(e) =>
-              setItem({ ...item, price: Number(e.target.value) })
-            }
-          />
+        <tbody>
+          {q.items.map((item) => (
+            <tr key={item.id} className="border-t">
+              <td>
+                <textarea
+                  value={item.name}
+                  onChange={(e) =>
+                    updateItem(item.id, { name: e.target.value })
+                  }
+                  className="w-full border"
+                />
+              </td>
 
-          <input
-            type="number"
-            placeholder="Quantity"
-            className="border p-2 w-full rounded"
-            onChange={(e) =>
-              setItem({ ...item, quantity: Number(e.target.value) })
-            }
-          />
+              <td><input value={item.uom} onChange={(e)=>updateItem(item.id,{uom:e.target.value})} className="w-full border"/></td>
+              <td><input type="number" value={item.usp} onChange={(e)=>updateItem(item.id,{usp:Number(e.target.value)})} className="w-full border"/></td>
+              <td><input type="number" value={item.quantity} onChange={(e)=>updateItem(item.id,{quantity:Number(e.target.value)})} className="w-full border"/></td>
+              <td><input type="number" value={item.discount} onChange={(e)=>updateItem(item.id,{discount:Number(e.target.value)})} className="w-full border"/></td>
 
-          {/* ACTIONS */}
-          <div className="flex justify-end gap-3 pt-4 border-t">
+              <td className="text-center">₹ {item.total}</td>
 
-            <button
-              onClick={onClose}
-              className="px-3 py-1 text-gray-500 hover:text-gray-700"
-            >
-              Cancel
-            </button>
+              <td>
+                <button onClick={()=>setQ({...q,items:q.items.filter(i=>i.id!==item.id)})} className="text-red-500">X</button>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
 
-            <button
-              onClick={() => {
-                if (!item.name) return;
-                onAdd({
-                  ...item,
-                  total: calculateItemTotal(item),
-                });
-              }}
-              className="bg-red-500 text-white px-4 py-2 rounded"
-            >
-              Add Item
-            </button>
+      <button onClick={addItem} className="mt-2 bg-red-500 text-white px-3 py-1 rounded">
+        + Add Item
+      </button>
 
+      {/* SUMMARY */}
+      <div className="mt-6 flex justify-end">
+        <div className="w-72 border p-4">
+          <div className="flex justify-between"><span>Subtotal</span><span>₹ {formatCurrency(q.summary.subtotal)}</span></div>
+          <div className="flex justify-between"><span>Discount</span><span>₹ {q.summary.totalDiscount}</span></div>
+          <div className="flex justify-between font-bold border-t mt-2 pt-2">
+            <span>Total</span><span>₹ {formatCurrency(q.summary.finalTotal)}</span>
           </div>
-
         </div>
+      </div>
+
+      {/* PAYMENT PLAN */}
+      <h3 className="mt-8 font-semibold border-b pb-1">Payment Plan</h3>
+
+      {totalPercent !== 100 && (
+        <p className="text-red-500 text-xs">
+          Total % = {totalPercent}% (should be 100%)
+        </p>
+      )}
+
+      <table className="w-full border table-fixed mt-2">
+        <tbody>
+          {q.paymentPlan.map((m, i) => (
+            <tr key={i} className="border-t">
+              <td><input value={m.milestone} onChange={(e)=>updateMilestone(i,{milestone:e.target.value})} className="w-full border"/></td>
+              <td><input value={m.description} onChange={(e)=>updateMilestone(i,{description:e.target.value})} className="w-full border"/></td>
+              <td><input type="number" value={m.percent} onChange={(e)=>updateMilestone(i,{percent:Number(e.target.value)})} className="w-full border"/></td>
+              <td className="text-center">₹ {m.amount}</td>
+              <td><button onClick={()=>setQ({...q,paymentPlan:q.paymentPlan.filter((_,x)=>x!==i)})}>X</button></td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+
+      <button onClick={()=>setQ({...q,paymentPlan:[...q.paymentPlan,{milestone:"",description:"",percent:0,amount:0}]})}
+        className="mt-2 bg-red-500 text-white px-3 py-1 rounded">
+        + Add Milestone
+      </button>
+
+      {/* BANK */}
+      <h3 className="mt-8 font-semibold border-b pb-1">Bank Details</h3>
+      <div className="text-xs mt-2">
+        <p>{q.bankDetails.accountName}</p>
+        <p>A/C: {q.bankDetails.accountNumber}</p>
+        <p>IFSC: {q.bankDetails.ifsc}</p>
+        <p>{q.bankDetails.bankName}</p>
+        <p>{q.bankDetails.branch}</p>
+      </div>
+
+      {/* TERMS */}
+      <h3 className="mt-8 font-semibold border-b pb-1">Terms</h3>
+      <textarea
+        value={q.terms.join("\n")}
+        onChange={(e)=>setQ({...q,terms:e.target.value.split("\n")})}
+        className="w-full border mt-2"
+        rows={6}
+      />
+
+      {/* ACTION */}
+      <div className="mt-6">
+        <button onClick={()=>onSave(q)} className="bg-green-500 text-white px-4 py-2 rounded">
+          Save
+        </button>
+
+        <button onClick={()=>window.print()} className="ml-4 bg-blue-500 text-white px-4 py-2 rounded">
+          Export PDF
+        </button>
       </div>
     </div>
   );
 }
 
-    /* ================= UTILS ================= */
+/* ================= LOGIC ================= */
 
-    function newQuotation() {
-    return {
-        id: "",
-        ref: "QT-" + Math.floor(Math.random() * 10000),
-        name: "",
-        items: [],
-        version: 1,
-        createdBy: "You",
-    };
-    }
+function calcItem(old, data) {
+  const i = { ...old, ...data };
+  return (i.usp || 0) * (i.quantity || 0) - (i.discount || 0);
+}
 
-    function calculateItemTotal(item) {
-    if (item.pricingType === "PER_AREA") return item.price * item.area;
-    else return item.price * item.quantity;
-    //return item.price ;
-    }
+function calculateQuotation(q) {
+  const subtotal = q.items.reduce((s, i) => s + (i.total || 0), 0);
+  const totalDiscount = q.items.reduce((s, i) => s + (i.discount || 0), 0);
 
-    function calculateQuotation(q) {
-    const subTotal = q.items.reduce((s, i) => s + i.total, 0);
-    return { ...q, subTotal, finalAmount: subTotal };
-    }
+  return {
+    ...q,
+    summary: {
+      subtotal,
+      totalDiscount,
+      finalTotal: subtotal,
+    },
+  };
+}
+
+function newQuotation() {
+  return {
+    ref: "EPI-" + Date.now(),
+    date: Date.now(),
+    company: DEFAULT_COMPANY,
+    client: {},
+    items: [],
+    paymentPlan: [],
+    bankDetails: DEFAULT_BANK,
+    summary: { subtotal: 0, totalDiscount: 0, finalTotal: 0 },
+    terms: DEFAULT_TERMS,
+    version: 1,
+    state: "Created",
+  };
+}
+
+const formatDate = (ts) => {
+  if (!ts) return "-";
+  const num = typeof ts === "string" ? Number(ts) : ts;
+  if (isNaN(num)) return ts;
+  return new Date(num).toLocaleDateString();
+};
+
+const formatCurrency = (num) => {
+  return new Intl.NumberFormat("en-IN").format(num || 0);
+};
