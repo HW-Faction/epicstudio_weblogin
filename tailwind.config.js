@@ -8,6 +8,11 @@ export default {
         accent: "#10B981",
         dark: "#0F172A",
         light: "#F8FAFC"
+      },
+      fontFamily: {
+        sans: ["Montserrat", "sans-serif"],
+        heading: ["Ubuntu", "sans-serif"],
+        
       }
     },
   },

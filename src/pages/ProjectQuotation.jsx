@@ -278,7 +278,7 @@ function Editor({ quotation, onBack, onSave }) {
             className="text-xs mb-2"
           />
           {q.company.logo && (
-            <img src={q.company.logo} className="h-16  mb-2" />
+            <img src={q.company.logo} className="h-16 mb-2" />
           )}
           <h2 className="text-xl font-bold">{q.company.name}</h2>
           <p className="text-xs">{q.company.address}</p>

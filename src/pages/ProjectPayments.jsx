@@ -16,6 +16,14 @@ import {
   uploadBytes,
   getDownloadURL,
 } from "firebase/storage";
+import { IndianRupee, CreditCard } from "lucide-react";
+
+
+import NavigationHeader from "../components/NavigationHeader";
+import ProjectNavigationChips from "../components/ProjectNavigationChips";
+import ConfirmDialog from "../components/ConfirmDialog";
+import Snackbar from "../components/Snackbar";
+import Modal from "../components/Modal";
 
 const SOURCES = ["Cash", "Bank", "CompanyAccount"];
 
@@ -26,22 +34,25 @@ export default function ProjectPayments() {
 
   const [funds, setFunds] = useState([]);
   const [expenses, setExpenses] = useState([]);
-
   const [categories, setCategories] = useState([]);
   const [vendors, setVendors] = useState([]);
 
-  const [search, setSearch] = useState("");
-  const [filterCategory, setFilterCategory] = useState("");
-
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState(null);
+  const [form, setForm] = useState({});
 
   const [categoryModal, setCategoryModal] = useState(false);
   const [newCategory, setNewCategory] = useState("");
 
-  const [form, setForm] = useState({});
+  const [snackbar, setSnackbar] = useState(null);
+  const [confirm, setConfirm] = useState(null);
 
-  // 🔥 FETCH
+  const [search, setSearch] = useState("");
+  const [filterCategory, setFilterCategory] = useState("");
+  const [sortBy, setSortBy] = useState("date");
+  const [sortOrder, setSortOrder] = useState("desc");
+
+  // ===== FETCH =====
   const fetchAll = async () => {
     const getList = async (path) => {
       const snap = await getDocs(collection(db, path));
@@ -61,31 +72,94 @@ export default function ProjectPayments() {
     setVendors(v);
   };
 
-  useEffect(() => {
-    fetchAll();
-  }, []);
+  useEffect(() => { fetchAll(); }, []);
 
-  // 🔥 TOTALS
+  // ===== TOTALS =====
   const totalFunds = funds.reduce((s, f) => s + Number(f.amount || 0), 0);
   const totalExpenses = expenses.reduce((s, e) => s + Number(e.amount || 0), 0);
   const balance = totalFunds - totalExpenses;
 
-  // 🔥 FILTER
-  const data = (tab === "FUNDS" ? funds : expenses).filter((item) => {
-    const matchSearch =
-      !search ||
-      JSON.stringify(item).toLowerCase().includes(search.toLowerCase());
+  const data = (tab === "FUNDS" ? funds : expenses)
+    .filter((item) => {
+      const text = JSON.stringify(item).toLowerCase();
 
-    const matchCategory =
-      !filterCategory ||
-      (tab === "FUNDS"
-        ? item.fundCategory === filterCategory
-        : item.expenseCategory === filterCategory);
+      const matchSearch =
+        !search || text.includes(search.toLowerCase());
 
-    return matchSearch && matchCategory;
-  });
+      const matchCategory =
+        !filterCategory ||
+        (tab === "FUNDS"
+          ? item.fundCategory === filterCategory
+          : item.expenseCategory === filterCategory);
 
-  // 🔥 ADD CATEGORY
+      return matchSearch && matchCategory;
+    })
+    .sort((a, b) => {
+      let valA, valB;
+
+      if (sortBy === "amount") {
+        valA = Number(a.amount || 0);
+        valB = Number(b.amount || 0);
+      } else {
+        valA = new Date(a.transactionDate || 0);
+        valB = new Date(b.transactionDate || 0);
+      }
+
+      return sortOrder === "asc" ? valA - valB : valB - valA;
+    });
+
+  // ===== SAVE =====
+  const handleSave = async () => {
+    let attachments = editing
+      ? tab === "FUNDS"
+        ? editing.fundReceipt || []
+        : editing.expenseReceipt || []
+      : [];
+
+    if (form.files?.length) {
+      for (let file of form.files) {
+        const path = `projects/${id}/${tab.toLowerCase()}/${Date.now()}_${file.name}`;
+        const storageRef = ref(storage, path);
+
+        await uploadBytes(storageRef, file);
+        const url = await getDownloadURL(storageRef);
+
+        attachments.push({ url, fileName: file.name });
+      }
+    }
+
+    const payload =
+      tab === "FUNDS"
+        ? { ...form, fundReceipt: attachments }
+        : { ...form, expenseReceipt: attachments };
+
+    delete payload.files;
+
+    const path = `projects/${id}/${tab.toLowerCase()}`;
+
+    if (editing) {
+      await updateDoc(doc(db, path, editing.id), payload);
+      setSnackbar({ type: "success", message: "Updated" });
+    } else {
+      await addDoc(collection(db, path), payload);
+      setSnackbar({ type: "success", message: "Added" });
+    }
+
+    setModalOpen(false);
+    setEditing(null);
+    setForm({});
+    fetchAll();
+  };
+
+  // ===== DELETE =====
+  const handleDelete = async () => {
+    await deleteDoc(doc(db, `projects/${id}/${tab.toLowerCase()}`, confirm.id));
+    setConfirm(null);
+    setSnackbar({ type: "error", message: "Deleted" });
+    fetchAll();
+  };
+
+  // ===== ADD CATEGORY =====
   const handleAddCategory = async () => {
     if (!newCategory.trim()) return;
 
@@ -93,169 +167,82 @@ export default function ProjectPayments() {
       label: newCategory,
     });
 
+    setSnackbar({ type: "success", message: "Category added" });
+
     setNewCategory("");
     setCategoryModal(false);
-    fetchAll();
-  };
-
-  // 🔥 SAVE
-  const handleSave = async () => {
-  let attachments = [];
-
-  // keep old attachments if editing
-  if (editing) {
-    attachments =
-      tab === "FUNDS"
-        ? editing.fundReceipt || []
-        : editing.expenseReceipt || [];
-  }
-
-  // upload new files
-  if (form.files?.length) {
-    for (let file of form.files) {
-      const path = `projects/${id}/${tab.toLowerCase()}/${Date.now()}_${file.name}`;
-      const storageRef = ref(storage, path);
-
-      await uploadBytes(storageRef, file);
-      const url = await getDownloadURL(storageRef);
-
-      attachments.push({
-        url,
-        fileName: file.name,
-        type: file.type.includes("pdf") ? "pdf" : "image",
-        size: file.size,
-      });
-    }
-  }
-
-  const payload =
-    tab === "FUNDS"
-      ? {
-          ...form,
-          fundReceipt: attachments,
-        }
-      : {
-          ...form,
-          expenseReceipt: attachments,
-        };
-
-  // remove temp field
-  delete payload.files;
-
-  const path = `projects/${id}/${tab.toLowerCase()}`;
-
-  if (editing) {
-    await updateDoc(doc(db, path, editing.id), payload);
-  } else {
-    await addDoc(collection(db, path), payload);
-  }
-
-  setModalOpen(false);
-  setForm({});
-  setEditing(null);
-
-  fetchAll();
-};
-
-  // 🔥 DELETE
-  const handleDelete = async (item) => {
-    if (!window.confirm("Delete?")) return;
-
-    await deleteDoc(
-      doc(db, `projects/${id}/${tab.toLowerCase()}`, item.id)
-    );
-
     fetchAll();
   };
 
   return (
     <div className="p-6 space-y-6">
 
-      {/* TOP STATS */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      {/* NAV */}
+      <NavigationHeader
+        title="Payments"
+        breadcrumbs={[
+          { label: "Projects", path: "/projects" },
+          { label: `Project (${id})` },
+        ]}
+        rightContent={<ProjectNavigationChips />}
+      />
 
-  {/* FUNDS */}
-  <div className="bg-white border border-green-100 rounded-2xl p-4 shadow-sm hover:shadow-md transition">
-    <div className="flex items-center justify-between mb-2">
-      <span className="text-sm text-gray-500">Funds</span>
-      <span className="text-green-600 text-lg">💰</span>
-    </div>
-
-    <h2 className="text-2xl font-semibold text-green-600">
-      ₹ {totalFunds}
-    </h2>
-
-    <p className="text-xs text-gray-400 mt-1">
-      Total incoming funds
-    </p>
-  </div>
-
-  {/* EXPENSES */}
-  <div className="bg-white border border-red-100 rounded-2xl p-4 shadow-sm hover:shadow-md transition">
-    <div className="flex items-center justify-between mb-2">
-      <span className="text-sm text-gray-500">Expenses</span>
-      <span className="text-red-500 text-lg">💸</span>
-    </div>
-
-    <h2 className="text-2xl font-semibold text-red-500">
-      ₹ {totalExpenses}
-    </h2>
-
-    <p className="text-xs text-gray-400 mt-1">
-      Total spending
-    </p>
-  </div>
-
-  {/* BALANCE */}
-  <div className="bg-white border border-blue-100 rounded-2xl p-4 shadow-sm hover:shadow-md transition">
-    <div className="flex items-center justify-between mb-2">
-      <span className="text-sm text-gray-500">Balance</span>
-      <span className="text-blue-600 text-lg">📊</span>
-    </div>
-
-    <h2
-      className={`text-2xl font-semibold ${
-        balance >= 0 ? "text-blue-600" : "text-red-500"
-      }`}
-    >
-      ₹ {balance}
-    </h2>
-
-    <p className="text-xs text-gray-400 mt-1">
-      Remaining amount
-    </p>
-  </div>
-
-</div>
-
-      {/* TABS */}
-      <div className="flex gap-6 border-b">
-        {["FUNDS", "EXPENSES"].map((t) => (
-          <button
-            key={t}
-            onClick={() => setTab(t)}
-            className={`pb-2 ${
-              tab === t
-                ? "border-b-2 border-blue-500 text-blue-600"
-                : "text-gray-500"
-            }`}
-          >
-            {t}
-          </button>
-        ))}
+      {/* STATS */}
+      <div className="grid grid-cols-3 gap-4">
+        <Stat label="Funds" icon={IndianRupee} value={`₹ ${totalFunds}`} color="text-green-600" />
+        <Stat label="Expenses" icon={CreditCard}  value={`₹ ${totalExpenses}`} color="text-red-600" />
+        <Stat label="Balance" icon={IndianRupee}  value={`₹ ${balance}`}  color="text-gray-600" />
       </div>
 
-      {/* FILTERS */}
-      <div className="flex gap-3">
+      {/* TABS */}
+      <div className="flex items-center justify-between">
+
+
+      {/* CENTER (tabs) */}
+        <div className="flex gap-2 items-start">
+          {["FUNDS", "EXPENSES"].map((t) => (
+            <button
+              key={t}
+              onClick={() => setTab(t)}
+              className={`px-3 py-1.5 rounded-full text-sm ${
+                tab === t ? "bg-primary text-white" : "bg-gray-100"
+              }`}
+            >
+              {t}
+            </button>
+          ))}
+        </div>
+
+        {/* RIGHT (button) */}
+        <div>
+          <button
+            onClick={() => {
+              setEditing(null);
+              setForm({});
+              setModalOpen(true);
+            }}
+            className="bg-primary text-white px-4 py-2 rounded-lg text-sm"
+          >
+            + Add Entry
+          </button>
+        </div>
+
+      </div>
+
+
+      <div className="flex flex-wrap gap-3 items-center">
+
+        {/* SEARCH */}
         <input
           placeholder="Search..."
-          className="border p-2 w-full"
+          className="border rounded-lg px-3 py-2 text-sm w-60"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
 
+        {/* CATEGORY FILTER */}
         <select
-          className="border p-2"
+          className="border rounded-lg px-3 py-2 text-sm"
           value={filterCategory}
           onChange={(e) => setFilterCategory(e.target.value)}
         >
@@ -265,157 +252,131 @@ export default function ProjectPayments() {
           ))}
         </select>
 
-        <button
-          onClick={() => {
-            setEditing(null);
-            setForm({});
-            setModalOpen(true);
-          }}
-          className="bg-primary text-white px-4"
+        {/* SORT BY */}
+        <select
+          className="border rounded-lg px-3 py-2 text-sm"
+          value={sortBy}
+          onChange={(e) => setSortBy(e.target.value)}
         >
-          + Add
+          <option value="date">Sort by Date</option>
+          <option value="amount">Sort by Amount</option>
+        </select>
+
+        {/* ORDER */}
+        <select
+          className="border rounded-lg px-3 py-2 text-sm"
+          value={sortOrder}
+          onChange={(e) => setSortOrder(e.target.value)}
+        >
+          <option value="desc">Descending</option>
+          <option value="asc">Ascending</option>
+        </select>
+
+        <button onClick={() => {
+          setSearch("");
+          setFilterCategory("");
+        }} className="ms-4 bg-gray-500 p-1 text-white border border-zinc-500 rounded-lg ps-4 pr-4">
+          Clear
         </button>
+
       </div>
+      
 
       {/* LIST */}
-      <div className="space-y-4">
+      <div className="bg-white border rounded-xl overflow-hidden">
 
-  {data.map((item) => (
-    <div
-      key={item.id}
-      className="bg-white border rounded-2xl p-4 shadow-sm hover:shadow-md transition flex justify-between gap-6"
-    >
-
-      {/* LEFT SECTION */}
-      <div className="flex-1">
-
-        {/* TOP ROW */}
-        <div className="flex items-center mb-2">
-         <h2
-  className={`text-xl font-semibold ${
-    tab === "FUNDS" ? "text-green-600" : "text-red-600"
-  }`}
->
-  ₹ {item.amount || "-"}
-</h2>
-
-          <span className="text-xs text-gray-500 ms-4">
-            {item.transactionDate || "-"}
-          </span>
+        <div className="grid grid-cols-6 px-4 py-2 text-xs text-gray-500 border-b">
+          <span className="text-start">Entry ID</span>
+          <span className="text-center">Amount</span>
+          <span className="text-center">Date</span>
+          <span className="text-center">Category</span>
+          <span className="text-center">Source</span>
+          <span className="text-right">Actions</span>
         </div>
 
-        {/* TAGS */}
-        <div className="flex flex-wrap gap-2 mb-2 text-xs">
+        {data.map((item) => (
+          <div
+            key={item.id}
+            className="grid grid-cols-6 px-4 py-3 text-sm items-center border-b hover:bg-gray-50"
+          >
+            <span className="font-medium mr-8">{item.id}</span>
+            <span className="font-medium text-center">₹ {item.amount}</span>
+            <span className="text-center">{item.transactionDate}</span>
+            <span className="text-center">{item.fundCategory || item.expenseCategory}</span>
+            <span className="text-center">{item.fundSource || item.expenseSource}</span>
 
-          <span className="px-2 py-1 bg-blue-50 text-blue-600 rounded-full">
-            {item.fundCategory || item.expenseCategory || "No Category"}
-          </span>
-
-          <span className="px-2 py-1 bg-gray-100 text-gray-600 rounded-full">
-            {item.fundSource || item.expenseSource || "No Source"}
-          </span>
-
-          {item.vendor && (
-            <span className="px-2 py-1 bg-purple-50 text-purple-600 rounded-full">
-              {item.vendor}
-            </span>
-          )}
-
-        </div>
-
-        {/* REMARK */}
-        <p className="text-sm text-gray-600 mb-3 leading-relaxed">
-          {item.fundRemarks || item.expenseRemarks || "No remarks"}
-        </p>
-
-        {/* ATTACHMENTS */}
-        {(item.fundReceipt || item.expenseReceipt)?.length > 0 && (
-          <div className="flex flex-wrap gap-2">
-
-            {(item.fundReceipt || item.expenseReceipt).map((file, i) => (
-              <a
-                key={i}
-                href={file.url}
-                target="_blank"
-                className="flex items-center gap-1 text-xs px-2 py-1 border rounded-lg hover:bg-gray-50"
+            <div className="flex gap-2 text-xs justify-end">
+              <button
+                onClick={() => {
+                  setEditing(item);
+                  setForm(item);
+                  setModalOpen(true);
+                }}
+                className="text-blue-600"
               >
-                {file.type === "pdf" ? "📄" : "🖼️"}
-                {file.fileName.length > 15
-                  ? file.fileName.slice(0, 15) + "..."
-                  : file.fileName}
-              </a>
-            ))}
+                Edit
+              </button>
 
+              <button
+                onClick={() => setConfirm(item)}
+                className="text-red-500"
+              >
+                Delete
+              </button>
+            </div>
           </div>
-        )}
+        ))}
 
       </div>
 
-      {/* RIGHT ACTIONS */}
-      <div className="flex flex-col justify-between items-end">
-
-        <div className="text-xs text-gray-400">
-          ID: {item.id}
-        </div>
-
-        <div className="flex gap-3 text-sm">
-
-          <button
-            onClick={() => {
-              setEditing(item);
-              setForm(item);
-              setModalOpen(true);
-            }}
-            className="text-blue-600 hover:underline"
-          >
-            Edit
-          </button>
-
-          <button
-            onClick={() => handleDelete(item)}
-            className="text-red-500 hover:underline"
-          >
-            Delete
-          </button>
-
-        </div>
-
-      </div>
-
-    </div>
-  ))}
-
-</div>
-
-      {/* MODAL */}
+      {/* ENTRY MODAL */}
       {modalOpen && (
-        <div className="fixed inset-0 bg-black/40 flex justify-center items-center">
-          <div className="bg-white p-6 w-[500px] rounded">
+        <Modal title={editing ? "Edit Entry" : "Add Entry"} onClose={() => setModalOpen(false)}>
+          <div className="space-y-3">
 
             <input
               type="date"
-              className="border p-2 w-full mb-2"
-              disabled={editing}
+              className="border p-2 w-full"
               value={form.transactionDate || ""}
-              onChange={(e) =>
-                setForm({ ...form, transactionDate: e.target.value })
-              }
+              onChange={(e) => setForm({ ...form, transactionDate: e.target.value })}
             />
 
             <input
               placeholder="Amount"
-              className="border p-2 w-full mb-2"
-              disabled={editing}
+              className="border p-2 w-full"
               value={form.amount || ""}
-              onChange={(e) =>
-                setForm({ ...form, amount: e.target.value })
-              }
+              onChange={(e) => setForm({ ...form, amount: e.target.value })}
             />
+
+            {/* CATEGORY */}
+            <div className="flex gap-2">
+              <select
+                className="border p-2 w-full"
+                value={tab === "FUNDS" ? form.fundCategory || "" : form.expenseCategory || ""}
+                onChange={(e) =>
+                  setForm({
+                    ...form,
+                    [tab === "FUNDS" ? "fundCategory" : "expenseCategory"]: e.target.value,
+                  })
+                }
+              >
+                <option value="">Select Category</option>
+                {categories.map((c) => (
+                  <option key={c.id}>{c.label}</option>
+                ))}
+              </select>
+
+              <button
+                onClick={() => setCategoryModal(true)}
+                className="px-3 bg-gray-100 rounded"
+              >
+                +
+              </button>
+            </div>
 
             {/* SOURCE */}
             <select
-              className="border p-2 w-full mb-2"
-              value={tab === "FUNDS" ? form.fundSource : form.expenseSource}
+              className="border p-2 w-full"
               onChange={(e) =>
                 setForm({
                   ...form,
@@ -423,126 +384,73 @@ export default function ProjectPayments() {
                 })
               }
             >
-              <option value="">Select Source</option>
-              {SOURCES.map((s) => (
-                <option key={s}>{s}</option>
-              ))}
+              <option>Select Source</option>
+              {SOURCES.map((s) => <option key={s}>{s}</option>)}
             </select>
 
-            {/* VENDOR (EXPENSE ONLY) */}
-            {tab === "EXPENSES" && (
-              <select
-                className="border p-2 w-full mb-2"
-                value={form.vendor || ""}
-                onChange={(e) =>
-                  setForm({ ...form, vendor: e.target.value })
-                }
-              >
-                <option value="">Select Vendor</option>
-                {vendors.map((v) => (
-                  <option key={v.id}>{v.vendorName}</option>
-                ))}
-              </select>
-            )}
-
-            {/* CATEGORY */}
-            <select
-              className="border p-2 w-full mb-2"
-              value={
-                tab === "FUNDS"
-                  ? form.fundCategory
-                  : form.expenseCategory
-              }
-              onChange={(e) => {
-                if (e.target.value === "ADD_NEW") {
-                  setCategoryModal(true);
-                } else {
-                  setForm({
-                    ...form,
-                    [tab === "FUNDS"
-                      ? "fundCategory"
-                      : "expenseCategory"]: e.target.value,
-                  });
-                }
-              }}
-            >
-              <option value="">Select Category</option>
-              {categories.map((c) => (
-                <option key={c.id}>{c.label}</option>
-              ))}
-              {tab === "FUNDS" && <option value="ADD_NEW">+ Add Category</option>}
-            </select>
-
-            {/* REMARK */}
             <textarea
-              className="border p-2 w-full mb-2"
               placeholder="Remarks"
+              className="border p-2 w-full"
               value={form.fundRemarks || form.expenseRemarks || ""}
               onChange={(e) =>
                 setForm({
                   ...form,
-                  [tab === "FUNDS"
-                    ? "fundRemarks"
-                    : "expenseRemarks"]: e.target.value,
+                  [tab === "FUNDS" ? "fundRemarks" : "expenseRemarks"]: e.target.value,
                 })
               }
             />
 
-            {/* FILE */}
-            <input
-              type="file"
-              multiple
-              className="mb-3"
-              onChange={(e) =>
-  setForm({
-    ...form,
-    files: Array.from(e.target.files),
-  })
-}
-            />
-
-            <div className="flex justify-end gap-2">
+            <div className="flex justify-end gap-3">
               <button onClick={() => setModalOpen(false)}>Cancel</button>
-              <button onClick={handleSave} className="bg-primary text-white px-4">
+              <button onClick={handleSave} className="bg-primary text-white px-4 py-2">
                 Save
               </button>
             </div>
 
           </div>
-        </div>
+        </Modal>
       )}
 
       {/* CATEGORY MODAL */}
       {categoryModal && (
-        <div className="fixed inset-0 bg-black/40 flex justify-center items-center">
-          <div className="bg-white p-5 rounded w-[300px]">
-
-            <input
-              className="border p-2 w-full mb-3"
-              placeholder="Category"
-              value={newCategory}
-              onChange={(e) => setNewCategory(e.target.value)}
-            />
-
-            <button
-              onClick={handleAddCategory}
-              className="bg-primary text-white px-4"
-            >
-              Add
-            </button>
-
-          </div>
-        </div>
+        <Modal title="Add Category" onClose={() => setCategoryModal(false)}>
+          <input
+            className="border p-2 w-full mb-3"
+            value={newCategory}
+            onChange={(e) => setNewCategory(e.target.value)}
+          />
+          <button onClick={handleAddCategory} className="bg-primary text-white px-4 py-2">
+            Add
+          </button>
+        </Modal>
       )}
+
+      {/* CONFIRM */}
+      {confirm && (
+        <ConfirmDialog
+          title={"Delete Entry"}
+          message={"Are you sure of this action?"}
+          open={!!confirm}
+          onConfirm={handleDelete}
+          onCancel={() => setConfirm(null)}
+        />
+      )}
+
+      {/* SNACKBAR */}
+      {snackbar && <Snackbar data={snackbar} />}
 
     </div>
   );
 }
 
-// UI
-const Stat = ({ label, value }) => (
-  <div className="bg-white p-4 rounded shadow text-center">
-    <p className="text-xs text-gray-500">{label}</p>
-    <p className="font-semibold">{value}</p>
-  </div>
+const Stat = ({ label, value, icon: Icon, color }) => (
+  <div className={`p-4 rounded-2xl border bg-white shadow-sm hover:shadow-md transition`}>
+      <div className="flex items-center justify-between">
+        <div className={`text-sm text-gray-500 ${color}`}>{label}</div>
+        {Icon && <Icon size={18} className={`${color}`} />}
+      </div>
+      <div className={`text-2xl font-semibold mt-2 ${color}`}>
+        {value}
+      </div>
+    </div>
 );
