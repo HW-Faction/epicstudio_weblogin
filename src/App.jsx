@@ -12,6 +12,8 @@ import ProjectPayments from "./pages/ProjectPayments";
 import ProjectCommunication from "./pages/ProjectCommunication";
 import ProjectQuotation from "./pages/ProjectQuotation";
 import Dashboard from "./pages/dashboard/Dashboard";
+import Settings from "./pages/Settings";
+import Tasks from "./pages/Tasks";
 
 export default function App() {
   return (
@@ -121,6 +123,26 @@ export default function App() {
           <ProtectedRoute>
             <AppLayout>
               <Vendors />
+            </AppLayout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/settings"
+        element={
+          <ProtectedRoute>
+            <AppLayout>
+              <Settings />
+            </AppLayout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/tasks"
+        element={
+          <ProtectedRoute>
+            <AppLayout>
+              <Tasks />
             </AppLayout>
           </ProtectedRoute>
         }

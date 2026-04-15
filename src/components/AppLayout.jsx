@@ -121,6 +121,10 @@ export default function AppLayout({ children }) {
               alt="profile"
               className="w-9 h-9 rounded-full object-cover border"
             />
+
+            {/* <Settings onClick={ navigate("settings") } className="w-7 h-7  " />
+            <LogOut color="red" onClick={ navigate("/") } className="w-7 h-7" /> */}
+
           </div>
         </div>
 

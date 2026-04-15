@@ -6,7 +6,11 @@ import { useAuth } from "../context/AuthContext";
 import {
   collection,
   addDoc,
-  getDocs,
+  onSnapshot,
+  query,
+  orderBy,
+  doc,
+  setDoc,
 } from "firebase/firestore";
 
 import {
@@ -15,59 +19,74 @@ import {
   getDownloadURL,
 } from "firebase/storage";
 
+import NavigationHeader from "../components/NavigationHeader";
+import ProjectNavigationChips from "../components/ProjectNavigationChips";
+
 export default function ProjectCommunication() {
   const { id } = useParams();
   const { user, dbUser } = useAuth();
 
   const [messages, setMessages] = useState([]);
-  const [filtered, setFiltered] = useState([]);
-
   const [tab, setTab] = useState("CLIENT_VISIBLE");
 
   const [text, setText] = useState("");
   const [file, setFile] = useState(null);
 
+  const [typingUsers, setTypingUsers] = useState([]);
+
   const role = dbUser?.role || "EMPLOYEE";
   const isClient = role === "CLIENT";
 
-  // 🔥 FETCH
-  const fetchMessages = async () => {
-    const snap = await getDocs(
-      collection(db, `projects/${id}/messages`)
+  // ===== REALTIME MESSAGES =====
+  useEffect(() => {
+    const q = query(
+      collection(db, `projects/${id}/messages`),
+      orderBy("createdAt")
     );
 
-    const list = snap.docs.map((d) => ({
-      id: d.id,
-      ...d.data(),
-    }));
+    const unsub = onSnapshot(q, (snap) => {
+      const list = snap.docs.map((d) => ({
+        id: d.id,
+        ...d.data(),
+      }));
 
-    // sort by time
-    list.sort((a, b) => a.createdAt - b.createdAt);
+      setMessages(list);
+    });
 
-    setMessages(list);
+    return () => unsub();
+  }, [id]);
+
+  // ===== TYPING INDICATOR =====
+  useEffect(() => {
+    const q = collection(db, `projects/${id}/typing`);
+
+    const unsub = onSnapshot(q, (snap) => {
+      const users = snap.docs.map((d) => d.data());
+      setTypingUsers(users.filter((u) => u.uid !== user.uid));
+    });
+
+    return () => unsub();
+  }, [id]);
+
+  const updateTyping = async (isTyping) => {
+    const refDoc = doc(db, `projects/${id}/typing/${user.uid}`);
+    if (isTyping) {
+      await setDoc(refDoc, {
+        uid: user.uid,
+        name: dbUser?.name,
+      });
+    } else {
+      await setDoc(refDoc, {});
+    }
   };
 
-  useEffect(() => {
-    fetchMessages();
+  // ===== FILTER =====
+  const filtered = messages.filter((m) => {
+    if (isClient) return m.visibility === "CLIENT_VISIBLE";
+    return m.visibility === tab;
+  });
 
-    const interval = setInterval(fetchMessages, 3000); // pseudo realtime
-    return () => clearInterval(interval);
-  }, []);
-
-  // 🔥 FILTER
-  useEffect(() => {
-    let data = [...messages];
-
-    if (isClient) {
-      data = data.filter((m) => m.visibility === "CLIENT_VISIBLE");
-    } else {
-      data = data.filter((m) => m.visibility === tab);
-    }
-
-    setFiltered(data);
-  }, [messages, tab, isClient]);
-
-  // 🔥 SEND MESSAGE
+  // ===== SEND =====
   const handleSend = async () => {
     if (!text && !file) return;
 
@@ -102,23 +121,35 @@ export default function ProjectCommunication() {
 
     setText("");
     setFile(null);
-
-    fetchMessages();
+    updateTyping(false);
   };
+
+  const getInitial = (name) =>
+    name?.charAt(0)?.toUpperCase() || "?";
 
   return (
     <div className="p-6 flex flex-col h-[90vh]">
 
-      {/* HEADER */}
-      <div className="flex gap-6 border-b mb-4">
+      {/* NAV */}
+      <NavigationHeader
+        title="Communication"
+        breadcrumbs={[
+          { label: "Projects", path: "/projects" },
+          { label: `Project (${id})` },
+        ]}
+        rightContent={<ProjectNavigationChips />}
+      />
+
+      {/* TABS */}
+      <div className="flex gap-2 mt-4 mb-4">
         {["CLIENT_VISIBLE", "INTERNAL"].map((t) => (
           <button
             key={t}
             onClick={() => setTab(t)}
-            className={`pb-2 ${
+            className={`px-3 py-1.5 rounded-full text-sm ${
               tab === t
-                ? "border-b-2 border-blue-500 text-blue-600"
-                : "text-gray-500"
+                ? "bg-primary text-white"
+                : "bg-gray-100"
             }`}
           >
             {t === "CLIENT_VISIBLE" ? "Client Visible" : "Internal"}
@@ -126,8 +157,8 @@ export default function ProjectCommunication() {
         ))}
       </div>
 
-      {/* CHAT AREA */}
-      <div className="flex-1 overflow-y-auto space-y-4 pr-2">
+      {/* CHAT */}
+      <div className="flex-1 overflow-y-auto space-y-4">
 
         {filtered.map((msg) => {
           const isMe = msg.senderId === user.uid;
@@ -135,89 +166,96 @@ export default function ProjectCommunication() {
           return (
             <div
               key={msg.id}
-              className={`flex ${
+              className={`flex gap-2 ${
                 isMe ? "justify-end" : "justify-start"
               }`}
             >
+              {!isMe && (
+                <div className="w-8 h-8 rounded-full bg-gray-300 flex items-center justify-center text-xs">
+                  {getInitial(msg.senderName)}
+                </div>
+              )}
 
               <div
-                className={`max-w-[60%] p-3 rounded-xl text-sm shadow ${
+                className={`max-w-[65%] px-4 py-3 rounded-2xl ${
                   isMe
-                    ? "bg-blue-500 text-white"
+                    ? "bg-primary text-white"
                     : "bg-white border"
                 }`}
               >
-
-                {/* NAME */}
-                <p className="text-xs opacity-70 mb-1">
+                <p className="text-xs opacity-60 mb-1">
                   {msg.senderName}
                 </p>
 
-                {/* TEXT */}
                 {msg.message && <p>{msg.message}</p>}
 
-                {/* FILE */}
                 {msg.fileUrl && (
                   <div className="mt-2">
-
                     {msg.type === "IMAGE" && (
-                      <img
-                        src={msg.fileUrl}
-                        className="rounded max-h-40"
-                      />
+                      <img src={msg.fileUrl} className="rounded-lg max-h-48" />
                     )}
-
                     {msg.type === "VIDEO" && (
-                      <video
-                        src={msg.fileUrl}
-                        controls
-                        className="max-h-40"
-                      />
+                      <video src={msg.fileUrl} controls className="max-h-48" />
                     )}
-
                     {msg.type === "PDF" && (
-                      <a
-                        href={msg.fileUrl}
-                        target="_blank"
-                        className="underline text-sm"
-                      >
+                      <a href={msg.fileUrl} target="_blank">
                         📄 {msg.fileName}
                       </a>
                     )}
-
                   </div>
                 )}
 
-                {/* TIME */}
-                <p className="text-[10px] opacity-60 mt-1 text-right">
+                <p className="text-[10px] mt-2 text-right opacity-60">
                   {new Date(msg.createdAt).toLocaleTimeString()}
                 </p>
-
               </div>
             </div>
           );
         })}
 
+        {/* TYPING */}
+        {typingUsers.length > 0 && (
+          <p className="text-xs text-gray-400">
+            {typingUsers.map((u) => u.name).join(", ")} typing...
+          </p>
+        )}
       </div>
 
-      {/* INPUT */}
-      <div className="mt-4 flex gap-2">
+      {/* INPUT BAR */}
+      <div className="mt-4 border rounded-xl p-3 flex items-center gap-3 bg-white">
 
+        {/* ATTACH BUTTON */}
+        <label className="cursor-pointer px-3 py-2 bg-gray-100 rounded-lg text-sm">
+          📎
+          <input
+            type="file"
+            hidden
+            onChange={(e) => setFile(e.target.files[0])}
+          />
+        </label>
+
+        {/* TEXT */}
         <input
-          className="border p-2 flex-1 rounded"
+          className="flex-1 outline-none text-sm"
           placeholder="Type a message..."
           value={text}
-          onChange={(e) => setText(e.target.value)}
+          onChange={(e) => {
+            setText(e.target.value);
+            updateTyping(true);
+          }}
         />
 
-        <input
-          type="file"
-          onChange={(e) => setFile(e.target.files[0])}
-        />
+        {/* FILE PREVIEW */}
+        {file && (
+          <span className="text-xs text-gray-500">
+            {file.name}
+          </span>
+        )}
 
+        {/* SEND */}
         <button
           onClick={handleSend}
-          className="bg-primary text-white px-4 rounded"
+          className="bg-primary text-white px-4 py-2 rounded-lg text-sm"
         >
           Send
         </button>
