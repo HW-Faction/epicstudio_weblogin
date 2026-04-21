@@ -14,6 +14,7 @@ import ProjectQuotation from "./pages/ProjectQuotation";
 import Dashboard from "./pages/dashboard/Dashboard";
 import Settings from "./pages/Settings";
 import Tasks from "./pages/Tasks";
+import Users from "./pages/Users";
 
 export default function App() {
   return (
@@ -143,6 +144,16 @@ export default function App() {
           <ProtectedRoute>
             <AppLayout>
               <Tasks />
+            </AppLayout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/users"
+        element={
+          <ProtectedRoute>
+            <AppLayout>
+              <Users />
             </AppLayout>
           </ProtectedRoute>
         }
