@@ -4,6 +4,7 @@ import { db } from "../../firebase";
 import { useAuth } from "../../context/AuthContext";
 import { Folder, AlertTriangle, CheckCircle2, Users } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import QuickActions from "./QuickActions";
 
 // ===== DATE UTILS =====
 const parseDate = (d) => (d ? new Date(d) : null);
@@ -97,14 +98,7 @@ export default function Dashboard() {
           <TaskSection title="Overdue" tasks={overdueTasks} danger users={users} />
         </div>
 
-        {role !== "EMPLOYEE" && role !== "CLIENT" && (
-          <div className="bg-white p-5 rounded-2xl border shadow-sm space-y-3">
-            <div className="font-semibold text-gray-700">Quick Actions</div>
-            <ActionBtn text="+ New Project" primary />
-            <ActionBtn text="+ Add Task" />
-            {role === "ADMIN" && <ActionBtn text="+ Add User" />}
-          </div>
-        )}
+        <QuickActions role={role} />
       </div>
 
       {/* PROJECTS */}
@@ -247,19 +241,5 @@ function TaskSection({ title, tasks, danger, users }) {
         </div>
       )}
     </div>
-  );
-}
-
-function ActionBtn({ text, primary }) {
-  return (
-    <button
-      className={`w-full py-2 rounded-lg text-sm font-medium transition ${
-        primary
-          ? "bg-primary text-white hover:opacity-90"
-          : "border hover:bg-gray-50"
-      }`}
-    >
-      {text}
-    </button>
   );
 }
