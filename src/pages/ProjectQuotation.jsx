@@ -1,4 +1,5 @@
 import { useEffect, useState, useRef } from "react";
+import Modal from "../components/Modal";
 import { useParams } from "react-router-dom";
 import {
   collection,
@@ -18,7 +19,7 @@ import {
   getDownloadURL,
 } from "firebase/storage";
 import logo from "../../public/logo.png"
-import { Rows3Icon, Columns3Icon, DeleteIcon, Grip } from 'lucide-react'
+import { Rows3Icon, Columns3Icon, DeleteIcon, Grip, Edit } from 'lucide-react'
 import NavigationHeader from "../components/NavigationHeader";
 import ProjectNavigationChips from "../components/ProjectNavigationChips";
 import TabSwitch from "../components/TabSwitch";
@@ -207,7 +208,7 @@ function Editor({ quotation, onBack, onSave, p }) {
   const [q, setQ] = useState(quotation);
   const [project] = useState(p);
   const [view, setView] = useState("PREVIEW");
-
+  const [editing, setEditing] = useState(null);
   const [rowConfig, setRowConfig] = useState({
     name: true, area: true, category: true, description: true, specification: true
   });
@@ -215,6 +216,17 @@ function Editor({ quotation, onBack, onSave, p }) {
     sNo: true, description: true, uom: true, usp: true, qty: true, total: true, disc: true
   });
   
+  const [form, setForm] = useState({
+    area: "",
+    category: "",
+    name: "",
+    quantity: "",
+    desctiption: "",
+    uom: "",
+    usp: "",
+    total: "0",
+    discount: "0"
+  });
 
   const [open, setOpen] = useState(null); // "rows" | "columns" | null
   const ref = useRef();
@@ -271,6 +283,63 @@ function Editor({ quotation, onBack, onSave, p }) {
     setQ({ ...q, items });
   };
 
+  const handleSaveItem = () => {
+    const itemData = {
+      ...form,
+      description: form.desctiption, // fix mapping
+      total: calcModalTotal(),
+    };
+
+    if (editing) {
+      // 🔁 UPDATE
+      const items = q.items.map((i) =>
+        i.id === editing.id ? { ...i, ...itemData } : i
+      );
+
+      setQ({ ...q, items });
+    } else {
+      // ➕ ADD
+      setQ({
+        ...q,
+        items: [
+          ...q.items,
+          {
+            id: Date.now(),
+            ...itemData,
+          },
+        ],
+      });
+    }
+
+    // RESET
+    setOpenModal(false);
+    setEditing(null);
+    setForm({
+      area: "",
+      category: "",
+      name: "",
+      quantity: "",
+      desctiption: "",
+      uom: "",
+      usp: "",
+      total: "0",
+      discount: "0",
+      itemCode: "",
+      specification: "",
+    });
+  };
+
+  const openEditItem = (item) => {
+    setEditing(item);
+
+    setForm({
+      ...item,
+      desctiption: item.description || "",
+    });
+
+    setOpenModal(true);
+  };
+
   const addItem = () => {
     setQ({
       ...q,
@@ -284,40 +353,23 @@ function Editor({ quotation, onBack, onSave, p }) {
           quantity: 1,
           discount: 0,
           total: 0,
+          category: "",
+          description: "",
+          specification: "",
+          area: "",
+          itemCode: "",
         },
       ],
     });
   };
 
-  const updateMilestone = (index, data) => {
-    const updated = q.paymentPlan.map((m, i) => {
-      if (i !== index) return m;
+  const calcModalTotal = () => {
+    const qty = Number(form.quantity || 0);
+    const usp = Number(form.usp || 0);
+    const discount = Number(form.discount || 0);
 
-      const newMilestone = { ...m, ...data };
-
-      newMilestone.amount =
-        ((newMilestone.percent || 0) / 100) *
-        (q.summary.finalTotal || 0);
-
-      return newMilestone;
-    });
-
-    setQ({ ...q, paymentPlan: updated });
-  };
-
-  const totalPercent = (q.paymentPlan || []).reduce(
-    (s, m) => s + (m.percent || 0),
-    0
-  );
-
-  const uploadLogo = async (file) => {
-    const storageRef = ref(
-      storage,
-      "quotation/logo_" + Date.now() + "_" + file.name
-    );
-
-    await uploadBytes(storageRef, file);
-    return await getDownloadURL(storageRef);
+    const total = qty * usp - discount;
+    return total > 0 ? total : 0;
   };
 
   const [openModal, setOpenModal] = useState(false);
@@ -326,9 +378,11 @@ function Editor({ quotation, onBack, onSave, p }) {
   const [sortBy, setSortBy] = useState("date");
   const [sortOrder, setSortOrder] = useState("desc");
 
-  const uniqueCategories = [
-      ...new Set(q.items.map((i) => i.category).filter(Boolean)),
-    ];
+  const [categories, setCategories] = useState([]);
+  const [catModal, setCatModal] = useState(false);
+  const [newCat, setNewCat] = useState("");
+
+  //const uniqueCategories = ;
 
   const filteredItems = (q.items || [])
   .filter((item) => {
@@ -368,7 +422,6 @@ function Editor({ quotation, onBack, onSave, p }) {
     return sortOrder === "asc" ? valA - valB : valB - valA;
   });
   
-
   return (
     <div>
       <>
@@ -381,10 +434,134 @@ function Editor({ quotation, onBack, onSave, p }) {
         </button>
       </>
 
+
       {/* YOUR MODAL */}
       {openModal && (
-        // 
-        <></>
+        <Modal
+          title={editing ? "Edit Item" : "New Item"}
+          onClose={() => {
+            setOpenModal(false);
+            setEditing(null);
+          }}
+        >
+          <div className="grid grid-cols-3 gap-4">
+
+            <input
+              placeholder="Area"
+              className="border p-2 col-span-2"
+              value={form.area}
+              onChange={(e) => setForm({ ...form, area: e.target.value })}
+            />
+
+            <input
+              placeholder="Item Code"
+              className="border p-2 col-span-1"
+              value={form.itemCode || ""}
+              onChange={(e) => setForm({ ...form, itemCode: e.target.value })}
+            />
+
+            <div className="flex col-span-3">
+              <select
+                className="border p-2 w-full"
+                value={form.category}
+                onChange={(e) => setForm({ ...form, category: e.target.value })}
+              >
+                <option value="">Select Category</option>
+                {uniqueCategories.map((s) => (
+                  <option key={s}>{s}</option>
+                ))}
+              </select>
+
+              <button
+                onClick={() => setCatModal(true)}
+                className="px-3 bg-gray-100 rounded"
+              >
+                +
+              </button>
+            </div>
+
+            <input
+              placeholder="Name"
+              className="border p-2 col-span-3"
+              value={form.name}
+              onChange={(e) => setForm({ ...form, name: e.target.value })}
+            />
+
+            <textarea
+              placeholder="Description"
+              className="border p-2 col-span-3"
+              value={form.desctiption}
+              onChange={(e) => setForm({ ...form, desctiption: e.target.value })}
+            />
+
+            <textarea
+              placeholder="Specifications"
+              className="border p-2 col-span-3"
+              value={form.specification || ""}
+              onChange={(e) =>
+                setForm({ ...form, specification: e.target.value })
+              }
+            />
+
+            <input
+              placeholder="UOM"
+              className="border p-2 col-span-1"
+              value={form.uom}
+              onChange={(e) => setForm({ ...form, uom: e.target.value })}
+            />
+
+            <input
+              placeholder="USP"
+              className="border p-2 col-span-1"
+              value={form.usp}
+              onChange={(e) => setForm({ ...form, usp: e.target.value })}
+            />
+
+            <input
+              placeholder="QTY"
+              className="border p-2 col-span-1"
+              value={form.quantity}
+              onChange={(e) =>
+                setForm({ ...form, quantity: e.target.value })
+              }
+            />
+
+            <input
+              placeholder="Discount"
+              className="border p-2 col-span-3"
+              value={form.discount || ""}
+              onChange={(e) =>
+                setForm({ ...form, discount: e.target.value })
+              }
+            />
+          </div>
+
+          {/* ✅ TOTAL DISPLAY */}
+          <div className="flex justify-between items-center mt-4">
+            <p className="text-sm text-gray-500">Total</p>
+            <p className="font-semibold text-lg">
+              ₹ {calcModalTotal()}
+            </p>
+          </div>
+
+          <div className="flex justify-end gap-3 mt-4">
+            <button
+              onClick={() => {
+                setOpenModal(false);
+                setEditing(null);
+              }}
+            >
+              Cancel
+            </button>
+
+            <button
+              onClick={handleSaveItem}
+              className="bg-primary text-white px-4 py-2"
+            >
+              {editing ? "Update" : "Save"}
+            </button>
+          </div>
+        </Modal>
       )}
       
       <div className="flex justify-start mb-6">
@@ -507,6 +684,7 @@ function Editor({ quotation, onBack, onSave, p }) {
                 { columnConfig.qty && (<th className="text-center">Qty</th>) }
                 { columnConfig.disc && (<th className="text-center">Disc</th>) }
                 { columnConfig.total && (<th className="text-center">Total</th>) }
+                { columnConfig.total && (<th className="text-center">Action</th>) }
               </tr>
             </thead>
 
@@ -542,6 +720,7 @@ function Editor({ quotation, onBack, onSave, p }) {
                   { columnConfig.qty && (<td className="text-center">{item.quantity}</td>) }
                   { columnConfig.disc && (<td className="text-center">{item.discount}</td>) }
                   { columnConfig.total && (<td className="text-center">₹ {item.total}</td>) }
+                  <td onClick={() => openEditItem(item)} className="text-center text-red-600">Edit </td>
                   
                   {/* <td>
                     <textarea
@@ -567,9 +746,9 @@ function Editor({ quotation, onBack, onSave, p }) {
             </tbody>
           </table>
 
-          <button onClick={addItem} className="mt-2 bg-red-500 text-white px-3 py-1 rounded">
+          {/* <button onClick={addItem} className="mt-2 bg-red-500 text-white px-3 py-1 rounded">
             + Add Item
-          </button>
+          </button> */}
 
           {/* SUMMARY */}
           <div className="mt-6 ">
@@ -705,6 +884,7 @@ function Editor({ quotation, onBack, onSave, p }) {
                 { columnConfig.qty && (<th className="text-center">Qty</th>) }
                 { columnConfig.disc && (<th className="text-center">Disc</th>) }
                 { columnConfig.total && (<th className="text-center">Total</th>) }
+                { columnConfig.total && (<th className="text-center">Action</th>) }
               </tr>
             </thead>
 
@@ -741,12 +921,56 @@ function Editor({ quotation, onBack, onSave, p }) {
                   { columnConfig.qty && (<td className="text-center">{item.quantity}</td>) }
                   { columnConfig.disc && (<td className="text-center">{item.discount}</td>) }
                   { columnConfig.total && (<td className="text-center">₹ {item.total}</td>) }
+                  <td onClick={() => openEditItem(item)} className="text-center text-red-600">Edit </td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
       )}
+
+      {catModal && (
+              <Modal title="Add Category" onClose={() => setCatModal(false)}>
+                <div className="space-y-3">
+      
+                  <input
+                    placeholder="Category name"
+                    className="border p-2 w-full"
+                    value={newCat}
+                    onChange={(e) => setNewCat(e.target.value)}
+                  />
+      
+                  <div className="flex justify-end gap-3">
+                    <button onClick={() => setCatModal(false)}>Cancel</button>
+      
+                    <button
+                      onClick={() => {
+                        if (!newCat.trim()) return;
+      
+                        const cat = newCat.trim();
+      
+                        if (!categories.includes(cat)) {
+                          setCategories((prev) => [...prev, cat]);
+                        }
+      
+                        setForm((prev) => ({
+                          ...prev,
+                          category: cat,
+                        }));
+      
+                        setNewCat("");
+                        setCatModal(false);
+                      }}
+                      className="bg-primary text-white px-4 py-2"
+                    >
+                      Add
+                    </button>
+      
+                  </div>
+      
+                </div>
+              </Modal>
+            )}
     </div>
   );
 }
