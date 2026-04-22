@@ -18,7 +18,7 @@ import {
   getDownloadURL,
 } from "firebase/storage";
 import logo from "../../public/logo.png"
-import { Rows3Icon, Columns3Icon, DeleteIcon } from 'lucide-react'
+import { Rows3Icon, Columns3Icon, DeleteIcon, Grip } from 'lucide-react'
 import NavigationHeader from "../components/NavigationHeader";
 import ProjectNavigationChips from "../components/ProjectNavigationChips";
 import TabSwitch from "../components/TabSwitch";
@@ -320,8 +320,73 @@ function Editor({ quotation, onBack, onSave, p }) {
     return await getDownloadURL(storageRef);
   };
 
+  const [openModal, setOpenModal] = useState(false);
+  const [search, setSearch] = useState("");
+  const [filterCategory, setFilterCategory] = useState("");
+  const [sortBy, setSortBy] = useState("date");
+  const [sortOrder, setSortOrder] = useState("desc");
+
+  const uniqueCategories = [
+      ...new Set(q.items.map((i) => i.category).filter(Boolean)),
+    ];
+
+  const filteredItems = (q.items || [])
+  .filter((item) => {
+    const text = JSON.stringify(item).toLowerCase();
+
+    const matchSearch =
+      !search || text.includes(search.toLowerCase());
+
+    const matchCategory =
+      !filterCategory ||
+      item.category === filterCategory;
+
+    return matchSearch && matchCategory;
+  })
+  .sort((a, b) => {
+    let valA, valB;
+
+    if (sortBy === "amount") {
+      valA = Number(a.total || a.qty * a.usp || 0);
+      valB = Number(b.total || b.qty * b.usp || 0);
+    } 
+    else if (sortBy === "qty") {
+      valA = Number(a.qty || 0);
+      valB = Number(b.qty || 0);
+    } 
+    else {
+      valA = (a.description || "").toLowerCase();
+      valB = (b.description || "").toLowerCase();
+    }
+
+    if (typeof valA === "string") {
+      return sortOrder === "asc"
+        ? valA.localeCompare(valB)
+        : valB.localeCompare(valA);
+    }
+
+    return sortOrder === "asc" ? valA - valB : valB - valA;
+  });
+  
+
   return (
     <div>
+      <>
+        {/* FAB */}
+        <button
+          onClick={() => setOpenModal(true)}
+          className="fixed bottom-6 right-6 z-50 bg-primary text-white w-12 h-12 rounded-full shadow-lg hover:shadow-xl hover:scale-105 transition-all flex items-center justify-center text-2xl"
+        >
+          +
+        </button>
+      </>
+
+      {/* YOUR MODAL */}
+      {openModal && (
+        // 
+        <></>
+      )}
+      
       <div className="flex justify-start mb-6">
         <TabSwitch
           value={view}
@@ -431,14 +496,13 @@ function Editor({ quotation, onBack, onSave, p }) {
           
 
           {/* ITEMS */}
-          <h3 className="mt-4 font-semibold border-b pb-1">Items</h3>
 
           <table className="w-full border table-fixed mt-2">
             <thead className="bg-gray-100">
               <tr>
                 { columnConfig.sNo && (<th>S No.</th>) }
-                { columnConfig.description && (<th className="w-[50%]">Description</th>) }
-                { columnConfig.uom && (<th className="text-center">UOM</th>) }
+                { columnConfig.description && (<th className="w-[50%] p-3">Description</th>) }
+                { columnConfig.uom && (<th className="text-center p-3">UOM</th>) }
                 { columnConfig.usp && (<th className="text-center">USP</th>) }
                 { columnConfig.qty && (<th className="text-center">Qty</th>) }
                 { columnConfig.disc && (<th className="text-center">Disc</th>) }
@@ -577,6 +641,112 @@ function Editor({ quotation, onBack, onSave, p }) {
           </div>
         </div>)
       }
+
+      {view === "ITEMS" && (
+        <div>
+          <div className="flex flex-wrap gap-3 items-center">
+
+            {/* SEARCH */}
+            <input
+              placeholder="Search..."
+              className="border rounded-lg px-3 py-2 text-sm w-60"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+
+            {/* CATEGORY FILTER */}
+            <select
+              className="border rounded-lg px-3 py-2 text-sm"
+              value={filterCategory}
+              onChange={(e) => setFilterCategory(e.target.value)}
+            >
+              <option value="">All Categories</option>
+              {uniqueCategories.map((c) => (
+                <option key={c.id}>{c}</option>
+              ))}
+            </select>
+
+            {/* SORT BY */}
+            <select
+              className="border rounded-lg px-3 py-2 text-sm"
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value)}
+            >
+              <option value="date">Sort by Date</option>
+              <option value="amount">Sort by Amount</option>
+            </select>
+
+            {/* ORDER */}
+            <select
+              className="border rounded-lg px-3 py-2 text-sm"
+              value={sortOrder}
+              onChange={(e) => setSortOrder(e.target.value)}
+            >
+              <option value="desc">Descending</option>
+              <option value="asc">Ascending</option>
+            </select>
+
+            <button onClick={() => {
+              setSearch("");
+              setFilterCategory("");
+            }} className="ms-4 bg-gray-500 p-1 text-white border border-zinc-500 rounded-lg ps-4 pr-4">
+              Clear
+            </button>
+
+          </div>
+          <table className="w-full border table-fixed mt-4">
+            <thead className="bg-gray-100">
+              <tr>
+                { columnConfig.sNo && (<th className="w-[1%]"></th>) }
+                { columnConfig.sNo && (<th>S No.</th>) }
+                { columnConfig.description && (<th className="w-[50%]">Description</th>) }
+                { columnConfig.uom && (<th className="text-center">UOM</th>) }
+                { columnConfig.usp && (<th className="text-center">USP</th>) }
+                { columnConfig.qty && (<th className="text-center">Qty</th>) }
+                { columnConfig.disc && (<th className="text-center">Disc</th>) }
+                { columnConfig.total && (<th className="text-center">Total</th>) }
+              </tr>
+            </thead>
+
+            <tbody>
+              {filteredItems.map((item, i) => (
+                <tr key={item.id} className="border-t">
+                  <td className="w-[1%] ms-1"><Grip /></td>   
+                  { columnConfig.sNo && (<th className="ms-4 text-center">{i + 1}</th> ) }
+                  { columnConfig.description && (
+                    <td className="w-[50%] p-4">
+                    {(item.name && rowConfig.name) && (<p className="text-red-600">{item.name}</p>)}
+                    {item.description && (
+                      <div>
+                        { rowConfig.area && (
+                          <div className="flex justify-start">
+                            <p className="font-semibold mr-2">Area:  </p>
+                            <p>{item.area}</p>
+                          </div>
+                        ) }
+                        { rowConfig.category && (
+                          <div className="flex justify-start">
+                            <p className="font-semibold mr-2">Category: </p>
+                            <p>{item.category}</p>
+                          </div>
+                        ) }   
+                      </div>       
+                    )}
+                    {(item.description && rowConfig.description) && (<p>{item.description}</p>)}
+                  </td>
+                  ) }
+                  
+                  { columnConfig.uom && (<td className="text-center">{item.uom}</td>) }
+                  { columnConfig.usp && (<td className="text-center">{item.usp}</td>) }
+                  { columnConfig.qty && (<td className="text-center">{item.quantity}</td>) }
+                  { columnConfig.disc && (<td className="text-center">{item.discount}</td>) }
+                  { columnConfig.total && (<td className="text-center">₹ {item.total}</td>) }
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 }
