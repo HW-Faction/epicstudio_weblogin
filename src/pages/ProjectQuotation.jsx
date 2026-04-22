@@ -382,7 +382,9 @@ function Editor({ quotation, onBack, onSave, p }) {
   const [catModal, setCatModal] = useState(false);
   const [newCat, setNewCat] = useState("");
 
-  //const uniqueCategories = ;
+  const uniqueCategories = [
+      ...new Set(q.items.map((i) => i.category).filter(Boolean)),
+    ];
 
   const filteredItems = (q.items || [])
   .filter((item) => {
@@ -433,6 +435,7 @@ function Editor({ quotation, onBack, onSave, p }) {
           +
         </button>
       </>
+
 
 
       {/* YOUR MODAL */}
