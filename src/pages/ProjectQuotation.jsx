@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useParams } from "react-router-dom";
 import {
   collection,
@@ -6,6 +6,7 @@ import {
   doc,
   updateDoc,
   deleteDoc,
+  getDoc,
   setDoc,
 } from "firebase/firestore";
 import { db } from "../firebase";
@@ -16,6 +17,11 @@ import {
   uploadBytes,
   getDownloadURL,
 } from "firebase/storage";
+import logo from "../../public/logo.png"
+import { Rows3Icon, Columns3Icon, DeleteIcon } from 'lucide-react'
+import NavigationHeader from "../components/NavigationHeader";
+import ProjectNavigationChips from "../components/ProjectNavigationChips";
+import TabSwitch from "../components/TabSwitch";
 
 /* ================= DEFAULTS ================= */
 
@@ -49,6 +55,7 @@ export default function ProjectQuotation() {
   const [screen, setScreen] = useState("list");
   const [quotations, setQuotations] = useState([]);
   const [selected, setSelected] = useState(null);
+  const [project, setProject] = useState(null);
 
   const quotationRef = collection(db, "projects", projectId, "quotations");
 
@@ -66,6 +73,16 @@ export default function ProjectQuotation() {
       }))
     );
   }
+
+  useEffect(() => {
+    const fetchProject = async () => {     
+      const snap = await getDoc(doc(db, "projects", projectId));
+      if (snap.exists()) {     
+        setProject({ id: snap.id, ...snap.data() });
+      }
+    };
+    fetchProject();
+  }, [projectId]);
 
   async function saveQuotation(q) {
     const updated = calculateQuotation(q);
@@ -100,8 +117,18 @@ export default function ProjectQuotation() {
     fetchQuotations();
   }
 
+
   return (
     <div className="p-6 bg-gray-100 min-h-screen">
+      <NavigationHeader
+              title="Project Quotations"
+              breadcrumbs={[
+                { label: "Projects", path: "/projects" },
+                { label: project?.projectName },
+              ]}
+              rightContent={<ProjectNavigationChips />}
+            />
+
       {screen === "list" && (
         <>
           <div className="flex justify-between mb-4">
@@ -168,7 +195,7 @@ export default function ProjectQuotation() {
       )}
 
       {screen === "editor" && (
-        <Editor quotation={selected} onBack={() => setScreen("list")} onSave={saveQuotation} />
+        <Editor quotation={selected} onBack={() => setScreen("list")} onSave={saveQuotation} p={project} />
       )}
     </div>
   );
@@ -176,8 +203,46 @@ export default function ProjectQuotation() {
 
 /* ================= EDITOR ================= */
 
-function Editor({ quotation, onBack, onSave }) {
+function Editor({ quotation, onBack, onSave, p }) {
   const [q, setQ] = useState(quotation);
+  const [project] = useState(p);
+  const [view, setView] = useState("PREVIEW");
+
+  const [rowConfig, setRowConfig] = useState({
+    name: true, area: true, category: true, description: true, specification: true
+  });
+  const [columnConfig, setColumnConfig] = useState({
+    sNo: true, description: true, uom: true, usp: true, qty: true, total: true, disc: true
+  });
+  
+
+  const [open, setOpen] = useState(null); // "rows" | "columns" | null
+  const ref = useRef();
+
+  useEffect(() => {
+    const handleClick = (e) => {
+      if (!ref.current?.contains(e.target)) {
+        setOpen(null);
+      }
+    };
+    window.addEventListener("click", handleClick);
+    return () => window.removeEventListener("click", handleClick);
+  }, []);
+
+  // 🔥 TOGGLE HANDLERS
+  const toggleRow = (key) => {
+    setRowConfig((prev) => ({
+      ...prev,
+      [key]: !prev[key],
+    }));
+  };
+
+  const toggleColumn = (key) => {
+    setColumnConfig((prev) => ({
+      ...prev,
+      [key]: !prev[key],
+    }));
+  };
 
   useEffect(() => {
     setQ(quotation);
@@ -256,169 +321,262 @@ function Editor({ quotation, onBack, onSave }) {
   };
 
   return (
-    <div id="print-area" className="bg-white p-10 max-w-5xl mx-auto text-sm">
-
-      <button onClick={onBack} className="mb-4">← Back</button>
-
-      {/* HEADER */}
-      <div className="flex justify-between border-b pb-4">
-        <div>
-          <input
-            type="file"
-            onChange={async (e) => {
-              if (!e.target.files[0]) return;
-
-              const url = await uploadLogo(e.target.files[0]);
-
-              setQ({
-                ...q,
-                company: { ...q.company, logo: url },
-              });
-            }}
-            className="text-xs mb-2"
-          />
-          {q.company.logo && (
-            <img src={q.company.logo} className="h-16 mb-2" />
-          )}
-          <h2 className="text-xl font-bold">{q.company.name}</h2>
-          <p className="text-xs">{q.company.address}</p>
-          <p className="text-xs">GST: {q.company.gst}</p>
-        </div>
-
-        <div className="text-right text-xs">
-          <p>Date: {new Date(q.date).toLocaleDateString()}</p>
-          <p>Ref: {q.ref}</p>
-        </div>
-      </div>
-
-      {/* CLIENT */}
-      <div className="mt-6">
-        <p className="font-semibold">Prepared For</p>
-        <input
-          value={q.client.name || ""}
-          onChange={(e) =>
-            setQ({ ...q, client: { ...q.client, name: e.target.value } })
-          }
-          className="border-b w-full"
+    <div>
+      <div className="flex justify-start mb-6">
+        <TabSwitch
+          value={view}
+          onChange={setView}
+          options={[
+            { label: "Items List", value: "ITEMS" },
+            { label: "Preview", value: "PREVIEW" },
+          ]}
         />
       </div>
 
-      {/* ITEMS */}
-      <h3 className="mt-6 font-semibold border-b pb-1">Items</h3>
+      {view === "PREVIEW" && (
+        <div id="print-area" className="bg-white px-16 py-8 w-[75%] max-w-5xl mx-auto text-sm">
 
-      <table className="w-full border table-fixed mt-2">
-        <thead className="bg-gray-100">
-          <tr>
-            <th className="w-[30%]">Description</th>
-            <th>UOM</th>
-            <th>USP</th>
-            <th>Qty</th>
-            <th>Disc</th>
-            <th>Total</th>
-            <th></th>
-          </tr>
-        </thead>
+          {/* <button onClick={onBack} className="mb-4">← Back</button> */}
 
-        <tbody>
-          {q.items.map((item) => (
-            <tr key={item.id} className="border-t">
-              <td>
-                <textarea
-                  value={item.name}
-                  onChange={(e) =>
-                    updateItem(item.id, { name: e.target.value })
-                  }
-                  className="w-full border"
-                />
-              </td>
+          {/* HEADER */}
+          <div className="flex justify-between border-b pb-4">
+            <div>
+              <img src={logo} className="h-48 w-54" />
+            </div>
 
-              <td><input value={item.uom} onChange={(e)=>updateItem(item.id,{uom:e.target.value})} className="w-full border"/></td>
-              <td><input type="number" value={item.usp} onChange={(e)=>updateItem(item.id,{usp:Number(e.target.value)})} className="w-full border"/></td>
-              <td><input type="number" value={item.quantity} onChange={(e)=>updateItem(item.id,{quantity:Number(e.target.value)})} className="w-full border"/></td>
-              <td><input type="number" value={item.discount} onChange={(e)=>updateItem(item.id,{discount:Number(e.target.value)})} className="w-full border"/></td>
-
-              <td className="text-center">₹ {item.total}</td>
-
-              <td>
-                <button onClick={()=>setQ({...q,items:q.items.filter(i=>i.id!==item.id)})} className="text-red-500">X</button>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-
-      <button onClick={addItem} className="mt-2 bg-red-500 text-white px-3 py-1 rounded">
-        + Add Item
-      </button>
-
-      {/* SUMMARY */}
-      <div className="mt-6 flex justify-end">
-        <div className="w-72 border p-4">
-          <div className="flex justify-between"><span>Subtotal</span><span>₹ {formatCurrency(q.summary.subtotal)}</span></div>
-          <div className="flex justify-between"><span>Discount</span><span>₹ {q.summary.totalDiscount}</span></div>
-          <div className="flex justify-between font-bold border-t mt-2 pt-2">
-            <span>Total</span><span>₹ {formatCurrency(q.summary.finalTotal)}</span>
+            <div className="text-left text-sm w-[40%]">
+              <br />
+              <h2 className="text-xl font-bold">{q.company.name}</h2>
+              <br />
+              <p className="text-sm">{q.company.address}</p>
+              <p className="text-sm">GST: {q.company.gst}</p>
+            </div>
           </div>
-        </div>
-      </div>
 
-      {/* PAYMENT PLAN */}
-      <h3 className="mt-8 font-semibold border-b pb-1">Payment Plan</h3>
+          {/* CLIENT */}
+          <div className="mt-6 text-sm">
+            <p className="font-base text-gray-500">Prepared For</p>
+            <h2 className="text-xl font-bold">{project.clientContactDetails?.clientName}</h2>
+            <p className="text-sm font-semibold">{project.projectName}</p>
+            <br />
+            <p className="text-sm font-semibold">Date: {new Date(q.date).toLocaleDateString()}</p>
+            <br />
+            <p className="text-sm font-semibold">Ref: {q.ref}</p>
+          </div>
 
-      {totalPercent !== 100 && (
-        <p className="text-red-500 text-xs">
-          Total % = {totalPercent}% (should be 100%)
-        </p>
-      )}
+          <br />
+        
+          <div className="flex justify-center">
+            <div
+              ref={ref}
+              className="relative bg-slate-100 flex justify-between w-[20%] px-4 py-2 rounded-xl"
+            >
+              {/* ROW ICON */}
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setOpen(open === "rows" ? null : "rows");
+                }}
+                className="p-1 hover:bg-gray-200 rounded"
+              >
+                <Rows3Icon className="w-5 h-5" />
+              </button>
 
-      <table className="w-full border table-fixed mt-2">
-        <tbody>
-          {q.paymentPlan.map((m, i) => (
-            <tr key={i} className="border-t">
-              <td><input value={m.milestone} onChange={(e)=>updateMilestone(i,{milestone:e.target.value})} className="w-full border"/></td>
-              <td><input value={m.description} onChange={(e)=>updateMilestone(i,{description:e.target.value})} className="w-full border"/></td>
-              <td><input type="number" value={m.percent} onChange={(e)=>updateMilestone(i,{percent:Number(e.target.value)})} className="w-full border"/></td>
-              <td className="text-center">₹ {m.amount}</td>
-              <td><button onClick={()=>setQ({...q,paymentPlan:q.paymentPlan.filter((_,x)=>x!==i)})}>X</button></td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+              {/* COLUMN ICON */}
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setOpen(open === "columns" ? null : "columns");
+                }}
+                className="p-1 hover:bg-gray-200 rounded"
+              >
+                <Columns3Icon className="w-5 h-5" />
+              </button>
+              
+              {/* 🔽 DROPDOWN */}
+              {open && (
+                <div
+                  className={`absolute top-full mt-2 w-56 bg-white border rounded-xl shadow-lg z-50 p-3 space-y-2 ${
+                    open === "rows" ? "left-0" : "right-0"
+                  }`}
+                >
+                  <p className="text-xs text-gray-500 mb-2">
+                    {open === "rows" ? "Row Fields" : "Column Fields"}
+                  </p>
 
-      <button onClick={()=>setQ({...q,paymentPlan:[...q.paymentPlan,{milestone:"",description:"",percent:0,amount:0}]})}
-        className="mt-2 bg-red-500 text-white px-3 py-1 rounded">
-        + Add Milestone
-      </button>
+                  {(open === "rows"
+                    ? Object.entries(rowConfig)
+                    : Object.entries(columnConfig)
+                  ).map(([key, value]) => (
+                    <label
+                      key={key}
+                      className="flex items-center gap-2 text-sm cursor-pointer hover:bg-gray-50 p-1 rounded"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={value}
+                        onChange={() =>
+                          open === "rows"
+                            ? toggleRow(key)
+                            : toggleColumn(key)
+                        }
+                      />
+                      <span className="capitalize">{key}</span>
+                    </label>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+          
 
-      {/* BANK */}
-      <h3 className="mt-8 font-semibold border-b pb-1">Bank Details</h3>
-      <div className="text-xs mt-2">
-        <p>{q.bankDetails.accountName}</p>
-        <p>A/C: {q.bankDetails.accountNumber}</p>
-        <p>IFSC: {q.bankDetails.ifsc}</p>
-        <p>{q.bankDetails.bankName}</p>
-        <p>{q.bankDetails.branch}</p>
-      </div>
+          {/* ITEMS */}
+          <h3 className="mt-4 font-semibold border-b pb-1">Items</h3>
 
-      {/* TERMS */}
-      <h3 className="mt-8 font-semibold border-b pb-1">Terms</h3>
-      <textarea
-        value={q.terms.join("\n")}
-        onChange={(e)=>setQ({...q,terms:e.target.value.split("\n")})}
-        className="w-full border mt-2"
-        rows={6}
-      />
+          <table className="w-full border table-fixed mt-2">
+            <thead className="bg-gray-100">
+              <tr>
+                { columnConfig.sNo && (<th>S No.</th>) }
+                { columnConfig.description && (<th className="w-[50%]">Description</th>) }
+                { columnConfig.uom && (<th className="text-center">UOM</th>) }
+                { columnConfig.usp && (<th className="text-center">USP</th>) }
+                { columnConfig.qty && (<th className="text-center">Qty</th>) }
+                { columnConfig.disc && (<th className="text-center">Disc</th>) }
+                { columnConfig.total && (<th className="text-center">Total</th>) }
+              </tr>
+            </thead>
 
-      {/* ACTION */}
-      <div className="mt-6">
-        <button onClick={()=>onSave(q)} className="bg-green-500 text-white px-4 py-2 rounded">
-          Save
-        </button>
+            <tbody>
+              {q.items.map((item, i) => (
+                <tr key={item.id} className="border-t">
+                  { columnConfig.sNo && (<th>{i + 1}</th>) }
+                  { columnConfig.description && (
+                    <td className="w-[50%] p-4">
+                    {(item.name && rowConfig.name) && (<p className="text-red-600">{item.name}</p>)}
+                    {item.description && (
+                      <div>
+                        { rowConfig.area && (
+                          <div className="flex justify-start">
+                            <p className="font-semibold mr-2">Area:  </p>
+                            <p>{item.area}</p>
+                          </div>
+                        ) }
+                        { rowConfig.category && (
+                          <div className="flex justify-start">
+                            <p className="font-semibold mr-2">Category: </p>
+                            <p>{item.category}</p>
+                          </div>
+                        ) }   
+                      </div>       
+                    )}
+                    {(item.description && rowConfig.description) && (<p>{item.description}</p>)}
+                  </td>
+                  ) }
+                  
+                  { columnConfig.uom && (<td className="text-center">{item.uom}</td>) }
+                  { columnConfig.usp && (<td className="text-center">{item.usp}</td>) }
+                  { columnConfig.qty && (<td className="text-center">{item.quantity}</td>) }
+                  { columnConfig.disc && (<td className="text-center">{item.discount}</td>) }
+                  { columnConfig.total && (<td className="text-center">₹ {item.total}</td>) }
+                  
+                  {/* <td>
+                    <textarea
+                      value={item.name}
+                      onChange={(e) =>
+                        updateItem(item.id, { name: e.target.value })
+                      }
+                      className="w-full border"
+                    />
+                  </td>
 
-        <button onClick={()=>window.print()} className="ml-4 bg-blue-500 text-white px-4 py-2 rounded">
-          Export PDF
-        </button>
-      </div>
+                  <td><input value={item.uom} onChange={(e)=>updateItem(item.id,{uom:e.target.value})} className="w-full border"/></td>
+                  <td><input type="number" value={item.usp} onChange={(e)=>updateItem(item.id,{usp:Number(e.target.value)})} className="w-full border"/></td>
+                  <td><input type="number" value={item.quantity} onChange={(e)=>updateItem(item.id,{quantity:Number(e.target.value)})} className="w-full border"/></td>
+                  <td><input type="number" value={item.discount} onChange={(e)=>updateItem(item.id,{discount:Number(e.target.value)})} className="w-full border"/></td>
+
+
+                  <td>
+                    <button onClick={()=>setQ({...q,items:q.items.filter(i=>i.id!==item.id)})} className="text-red-500">X</button>
+                  </td> */}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+
+          <button onClick={addItem} className="mt-2 bg-red-500 text-white px-3 py-1 rounded">
+            + Add Item
+          </button>
+
+          {/* SUMMARY */}
+          <div className="mt-6 ">
+            <div className="w-full border p-4">
+              <div className="flex justify-between"><span>Subtotal</span><span>₹ {formatCurrency(q.summary.subtotal)}</span></div>
+              <div className="flex justify-between"><span>Discount</span><span>₹ {q.summary.totalDiscount}</span></div>
+              <div className="flex justify-between font-bold border-t mt-2 pt-2">
+                <span>Total</span><span>₹ {formatCurrency(q.summary.finalTotal)}</span>
+              </div>
+            </div>
+          </div>
+
+          {/* PAYMENT PLAN */}
+          {/* <h3 className="mt-8 font-semibold border-b pb-1">Payment Plan</h3>
+
+          {totalPercent !== 100 && (
+            <p className="text-red-500 text-xs">
+              Total % = {totalPercent}% (should be 100%)
+            </p>
+          )}
+
+          <table className="w-full border table-fixed mt-2">
+            <tbody>
+              {q.paymentPlan.map((m, i) => (
+                <tr key={i} className="border-t">
+                  <td><input value={m.milestone} onChange={(e)=>updateMilestone(i,{milestone:e.target.value})} className="w-full border"/></td>
+                  <td><input value={m.description} onChange={(e)=>updateMilestone(i,{description:e.target.value})} className="w-full border"/></td>
+                  <td><input type="number" value={m.percent} onChange={(e)=>updateMilestone(i,{percent:Number(e.target.value)})} className="w-full border"/></td>
+                  <td className="text-center">₹ {m.amount}</td>
+                  <td><button onClick={()=>setQ({...q,paymentPlan:q.paymentPlan.filter((_,x)=>x!==i)})}>X</button></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+
+          <button onClick={()=>setQ({...q,paymentPlan:[...q.paymentPlan,{milestone:"",description:"",percent:0,amount:0}]})}
+            className="mt-2 bg-red-500 text-white px-3 py-1 rounded">
+            + Add Milestone
+          </button> */}
+
+          {/* BANK */}
+          <h3 className="mt-8 font-semibold border-b pb-1">Bank Details</h3>
+          <div className="text-xs mt-2">
+            <p>{q.bankDetails.accountName}</p>
+            <p>A/C: {q.bankDetails.accountNumber}</p>
+            <p>IFSC: {q.bankDetails.ifsc}</p>
+            <p>{q.bankDetails.bankName}</p>
+            <p>{q.bankDetails.branch}</p>
+          </div>
+
+          {/* TERMS */}
+          <h3 className="mt-8 font-semibold border-b pb-1">Terms</h3>
+          <textarea
+            value={q.terms.join("\n")}
+            onChange={(e)=>setQ({...q,terms:e.target.value.split("\n")})}
+            className="w-full border mt-2"
+            rows={6}
+          />
+
+          {/* ACTION */}
+          <div className="mt-6">
+            <button onClick={()=>onSave(q)} className="bg-green-500 text-white px-4 py-2 rounded">
+              Save
+            </button>
+
+            <button onClick={()=>window.print()} className="ml-4 bg-blue-500 text-white px-4 py-2 rounded">
+              Export PDF
+            </button>
+          </div>
+        </div>)
+      }
     </div>
   );
 }

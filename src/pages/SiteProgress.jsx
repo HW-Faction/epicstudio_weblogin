@@ -152,7 +152,7 @@ export default function SiteProgress() {
         title="Site Progress"
         breadcrumbs={[
           { label: "Projects", path: "/projects" },
-          { label: `${project?.projectName || "Project"} (${id})` },
+          { label: project?.projectName },
         ]}
         rightContent={<ProjectNavigationChips />}
       />

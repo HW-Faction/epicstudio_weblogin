@@ -8,6 +8,7 @@ export default function ProjectNavigationChips() {
   const tabs = [
     { label: "Overview", path: "" },
     { label: "Details", path: "details" },
+    { label: "Quotations", path: "quotation" },
     { label: "Milestones", path: "milestones" },
     { label: "Payments", path: "payments" },
     { label: "Uploads", path: "site-progress" },

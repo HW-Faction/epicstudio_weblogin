@@ -11,6 +11,7 @@ import {
   orderBy,
   doc,
   setDoc,
+  getDoc
 } from "firebase/firestore";
 
 import {
@@ -25,6 +26,7 @@ import ProjectNavigationChips from "../components/ProjectNavigationChips";
 export default function ProjectCommunication() {
   const { id } = useParams();
   const { user, dbUser } = useAuth();
+  const [project, setProject] = useState(null);
 
   const [messages, setMessages] = useState([]);
   const [tab, setTab] = useState("CLIENT_VISIBLE");
@@ -36,6 +38,16 @@ export default function ProjectCommunication() {
 
   const role = dbUser?.role || "EMPLOYEE";
   const isClient = role === "CLIENT";
+
+  useEffect(() => {
+      const fetchProject = async () => {     
+        const snap = await getDoc(doc(db, "projects", id));
+        if (snap.exists()) {     
+          setProject({ id: snap.id, ...snap.data() });
+        }
+      };
+      fetchProject();
+    }, [id]);
 
   // ===== REALTIME MESSAGES =====
   useEffect(() => {
@@ -135,7 +147,7 @@ export default function ProjectCommunication() {
         title="Communication"
         breadcrumbs={[
           { label: "Projects", path: "/projects" },
-          { label: `Project (${id})` },
+          { label: project?.projectName },
         ]}
         rightContent={<ProjectNavigationChips />}
       />

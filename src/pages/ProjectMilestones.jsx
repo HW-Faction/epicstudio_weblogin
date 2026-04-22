@@ -10,6 +10,7 @@ import {
   getDocs,
   updateDoc,
   deleteDoc,
+  getDoc,
   doc,
 } from "firebase/firestore";
 
@@ -24,6 +25,8 @@ const STATUS = ["Not Started", "In Progress", "Completed"];
 export default function ProjectMilestones() {
   const { id } = useParams();
   const { user } = useAuth();
+
+  const [project, setProject] = useState(null);
 
   const [milestones, setMilestones] = useState([]);
   const [grouped, setGrouped] = useState({});
@@ -169,6 +172,17 @@ export default function ProjectMilestones() {
     fetchAll();
   };
 
+  useEffect(() => {
+      const fetchProject = async () => {     
+        const snap = await getDoc(doc(db, "projects", id));
+        if (snap.exists()) {     
+          setProject({ id: snap.id, ...snap.data() });
+        }
+      };
+      fetchProject();
+    }, [id]);
+
+
   return (
     <div className="p-6 space-y-6">
 
@@ -177,7 +191,7 @@ export default function ProjectMilestones() {
         title="Milestones"
         breadcrumbs={[
           { label: "Projects", path: "/projects" },
-          { label: `Project (${id})` },
+          { label:  project ? project.projectName : "" },
         ]}
         rightContent={<ProjectNavigationChips />}
       />

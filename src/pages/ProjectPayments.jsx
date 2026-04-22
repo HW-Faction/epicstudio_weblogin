@@ -9,6 +9,7 @@ import {
   updateDoc,
   deleteDoc,
   doc,
+  getDoc
 } from "firebase/firestore";
 
 import {
@@ -51,6 +52,18 @@ export default function ProjectPayments() {
   const [filterCategory, setFilterCategory] = useState("");
   const [sortBy, setSortBy] = useState("date");
   const [sortOrder, setSortOrder] = useState("desc");
+
+  const [project, setProject] = useState(null);
+
+  useEffect(() => {
+      const fetchProject = async () => {     
+        const snap = await getDoc(doc(db, "projects", id));
+        if (snap.exists()) {     
+          setProject({ id: snap.id, ...snap.data() });
+        }
+      };
+      fetchProject();
+    }, [id]);
 
   // ===== FETCH =====
   const fetchAll = async () => {
@@ -182,7 +195,7 @@ export default function ProjectPayments() {
         title="Payments"
         breadcrumbs={[
           { label: "Projects", path: "/projects" },
-          { label: `Project (${id})` },
+          { label: project?.projectName },
         ]}
         rightContent={<ProjectNavigationChips />}
       />
