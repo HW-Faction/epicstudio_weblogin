@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useParams, useLocation } from "react-router-dom";
 import { db } from "../firebase";
 import {
   collection,
@@ -19,6 +20,18 @@ const STAGES = ["Planning", "Designing", "Execution", "Completed"];
 export default function Projects() {
   const { user, dbUser } = useAuth();
   const navigate = useNavigate();
+  const { id } = useParams();
+  const location = useLocation()
+
+  //alert(location.pathname)
+  const [leadsVisible, setLeadsVisible] = useState(false);
+  useEffect(() => {
+    if (location.pathname === "/leads") {
+      setLeadsVisible(true);
+    } else {
+      setLeadsVisible(false);
+    }
+  }, [location.pathname]);
 
   const [projects, setProjects] = useState([]);
   const [filtered, setFiltered] = useState([]);
@@ -47,13 +60,21 @@ export default function Projects() {
 
   const fetchProjects = async () => {
     const snap = await getDocs(collection(db, "projects"));
-    setProjects(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
+    setProjects(
+      snap.docs
+        .filter((d) => (!leadsVisible ? d.data().isLead === true : d.data().isLead === false))
+        .map((d) => ({ id: d.id, ...d.data() }))
+    );
   };
 
   useEffect(() => {
     fetchProjects();
     fetchUsers();
   }, []);
+
+  useEffect(() => {
+    fetchProjects();
+  }, [location.pathname])
 
   // ===== FILTER + SORT =====
   useEffect(() => {
@@ -132,7 +153,7 @@ export default function Projects() {
     <div className="p-6 space-y-6">
 
       {/* NAV */}
-      <NavigationHeader title="Projects" rightContent={
+      <NavigationHeader title={`${leadsVisible ? "Leads" : "Projects"}`} rightContent={
           <div className="flex justify-end items-center">
             <p className="text-md text-sky-900 mr-4">
             Total : {filtered.length} projects
@@ -146,7 +167,7 @@ export default function Projects() {
                 }}
                 className="bg-primary text-white px-4 py-2 rounded-lg text-sm"
               >
-                + New Project
+                + New {leadsVisible ? "Lead" : "Project"}
               </button>
             )}
           </div>
@@ -318,6 +339,7 @@ export default function Projects() {
 
       {/* MODAL */}
       <ProjectModal
+        isLead={leadsVisible}
         isOpen={modalOpen}
         onClose={() => {
           setModalOpen(false);

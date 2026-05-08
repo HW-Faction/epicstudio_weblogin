@@ -12,7 +12,7 @@ import { useAuth } from "../context/AuthContext";
 const STAGES = ["Planning", "Designing", "Execution", "Completed"];
 const SCOPES = ["Interior", "Full Turnkey", "Architecture"];
 
-export default function ProjectModal({ isOpen, onClose, editingProject, refresh }) {
+export default function ProjectModal({ isOpen, onClose, editingProject, refresh, isLead }) {
   const { user } = useAuth();
 
   const [users, setUsers] = useState([]);
@@ -108,6 +108,7 @@ export default function ProjectModal({ isOpen, onClose, editingProject, refresh 
       projectStage: form.projectStage,
       projectScope: form.projectScope,
       projectBudget: form.projectBudget,
+      isLead: isLead,
 
       projectAssignedTo: form.projectAssignedTo
         ? [form.projectAssignedTo]

@@ -46,6 +46,17 @@ export default function App() {
             </ProtectedRoute>
           }
         />
+
+        <Route
+          path="leads/"
+          element={
+            <ProtectedRoute>
+              <AppLayout>
+                <Projects />
+              </AppLayout>
+            </ProtectedRoute>
+          }
+        />
    
         <Route
           path="/projects/:id"

@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { db } from "../firebase";
-import { doc, getDoc } from "firebase/firestore";
+import { doc, getDoc, updateDoc } from "firebase/firestore";
 import { ChevronRight } from "lucide-react";
 import NavigationHeader from "../components/NavigationHeader";
 import ProjectNavigationChips from "../components/ProjectNavigationChips";
@@ -22,6 +22,13 @@ export default function ProjectOverview() {
     fetchProject();
   }, [id]);
 
+  const handleSave = async () => {
+    const payload = {...project, isLead: !project.isLead };
+    await updateDoc(doc(db, "projects", project.projectId), payload);
+    alert("Project converted!")
+    navigate(-1)
+  };
+
   if (!project) return <div className="p-6 text-gray-400">Loading project...</div>;
 
   return (
@@ -39,15 +46,24 @@ export default function ProjectOverview() {
       <div className="bg-white border rounded-2xl p-6 space-y-4">
 
         {/* Title */}
-        <div className="flex justify-between items-start">
-          <div>
-            <h1 className="text-xl font-semibold text-gray-800">
-              {project.projectName}
-            </h1>
-            <p className="text-sm text-gray-500 mt-1">
-              {project.clientContactDetails?.clientName} • {project.projectId}
-            </p>
+        <div className="flex justify-between">
+          <div  className="items-start">
+            <div>
+              <h1 className="text-xl font-semibold text-gray-800">
+                {project.projectName}
+              </h1>
+              <p className="text-sm text-gray-500 mt-1">
+                {project.clientContactDetails?.clientName} • {project.projectId}
+              </p>
+            </div>
           </div>
+          <button
+                onClick={handleSave}
+                  className="px-6 text-sm bg-primary text-white py-1 rounded-md h-10"
+                >
+                Convert to {project.isLead === true ? "Project" : "Lead"}
+                  
+                </button>
         </div>
 
         {/* Meta Info */}

@@ -9,7 +9,8 @@ import {
   Settings,
   Truck,
   LogOut,
-  LayoutDashboardIcon
+  LayoutDashboardIcon,
+  MagnetIcon
 } from "lucide-react";
 import logo from "../../public/logo.png"
 
@@ -81,6 +82,7 @@ export default function AppLayout({ children }) {
           {/* NAVIGATION */}
           <div className="p-3 space-y-1">
             {navItem("/dashboard", "Dashboard", LayoutDashboardIcon)}
+            {navItem("/leads", "Leads", MagnetIcon)}
             {navItem("/projects", "Projects", Folder)}
             {navItem("/tasks", "Tasks", CheckSquare)}
             {navItem("/vendors", "Vendors", Truck)}
