@@ -4,6 +4,8 @@ import { db } from "../firebase";
 import { doc, getDoc, collection, getDocs } from "firebase/firestore";
 import NavigationHeader from "../components/NavigationHeader";
 import ProjectNavigationChips from "../components/ProjectNavigationChips";
+import jsPDF from "jspdf";
+import * as XLSX from "xlsx";
 
 export default function ProjectDetails() {
   const { id } = useParams();
@@ -54,6 +56,88 @@ export default function ProjectDetails() {
   const totalFunds = funds.reduce((sum, f) => sum + Number(f.amount || 0), 0);
   const remaining = totalFunds - totalExpense;
 
+  const downloadPDF = () => {
+  const doc = new jsPDF();
+  let y = 15;
+
+  const add = (text) => {
+    doc.text(String(text), 10, y);
+    y += 8;
+    if (y > 280) {
+      doc.addPage();
+      y = 15;
+    }
+  };
+
+  add("PROJECT REPORT");
+  add("----------------------------");
+  add(`Project: ${project.projectName}`);
+  add(`Client: ${project.clientContactDetails?.clientName}`);
+  add(`Phone: ${project.clientContactDetails?.clientNumber}`);
+  add(`Stage: ${project.projectStage}`);
+  add(`Owner: ${project.projectOwner}`);
+  add(`Budget: Rs ${project.projectBudget}`);
+  add(`Start: ${project.projectTentativeStartDate}`);
+  add(`Handover: ${project.projectExpectedHandoverDate}`);
+  add(`Description: ${project.projectDescription || "-"}`);
+
+  add("");
+  // add("MILESTONES");
+  // milestones.forEach((m, i) => {
+  //   add(`${i + 1}. ${m.milestoneName} | ${m.milestoneStatus}`);
+  // });
+
+  add("");
+  add("EXPENSES");
+  expenses.forEach((e, i) => {
+    add(`${i + 1}. ${e.id} - Rs ${e.amount}`);
+  });
+
+  add("");
+  add("FUNDS");
+  funds.forEach((f, i) => {
+    add(`${i + 1}. ${f.id} - Rs ${f.amount}`);
+  });
+
+  add("");
+  add(`TOTAL FUNDS: Rs ${totalFunds}`);
+  add(`TOTAL EXPENSE: Rs ${totalExpense}`);
+  add(`BALANCE: Rs ${remaining}`);
+
+  doc.save(`${project.projectName}.pdf`);
+};
+
+const downloadExcel = () => {
+  const wb = XLSX.utils.book_new();
+
+  const projectSheet = XLSX.utils.json_to_sheet([
+    {
+      Project: project.projectName,
+      Client: project.clientContactDetails?.clientName,
+      Phone: project.clientContactDetails?.clientNumber,
+      Stage: project.projectStage,
+      Owner: project.projectOwner,
+      Budget: project.projectBudget,
+      Start: project.projectTentativeStartDate,
+      Handover: project.projectExpectedHandoverDate,
+      Description: project.projectDescription,
+    },
+  ]);
+
+  const milestoneSheet = XLSX.utils.json_to_sheet(milestones);
+  const expenseSheet = XLSX.utils.json_to_sheet(expenses);
+  const fundSheet = XLSX.utils.json_to_sheet(funds);
+  const categorySheet = XLSX.utils.json_to_sheet(categories);
+
+  XLSX.utils.book_append_sheet(wb, projectSheet, "Project");
+  XLSX.utils.book_append_sheet(wb, milestoneSheet, "Milestones");
+  XLSX.utils.book_append_sheet(wb, expenseSheet, "Expenses");
+  XLSX.utils.book_append_sheet(wb, fundSheet, "Funds");
+  XLSX.utils.book_append_sheet(wb, categorySheet, "Categories");
+
+  XLSX.writeFile(wb, `${project.projectName}.xlsx`);
+};
+
   return (
     <div className="p-6 space-y-6">
       <NavigationHeader
@@ -66,7 +150,8 @@ export default function ProjectDetails() {
       />
 
       {/* ===== HEADER ===== */}
-      <div className="bg-white border rounded-2xl p-6 space-y-3">
+      <div className="bg-white border rounded-2xl p-6 space-y-3 flex justify-between">
+        <div>
         <h1 className="text-xl font-semibold text-gray-800">
           {project.projectName}
         </h1>
@@ -74,6 +159,23 @@ export default function ProjectDetails() {
         <p className="text-sm text-gray-500">
           {project.clientContactDetails?.clientName} • {project.projectStage}
         </p>
+        </div>
+        
+        <div className="flex gap-2">
+          <button
+            onClick={downloadPDF}
+            className="px-4 text-sm bg-primary text-white py-2 rounded-md"
+          >
+            PDF ↓
+          </button>
+
+          <button
+            onClick={downloadExcel}
+            className="px-4 text-sm bg-green-600 text-white py-2 rounded-md"
+          >
+            Excel ↓
+          </button>
+        </div>
       </div>
 
       {/* ===== STATS ===== */}

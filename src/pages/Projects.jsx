@@ -23,15 +23,7 @@ export default function Projects() {
   const { id } = useParams();
   const location = useLocation()
 
-  //alert(location.pathname)
-  const [leadsVisible, setLeadsVisible] = useState(false);
-  useEffect(() => {
-    if (location.pathname === "/leads") {
-      setLeadsVisible(true);
-    } else {
-      setLeadsVisible(false);
-    }
-  }, [location.pathname]);
+  const leadsVisible = location.pathname === "/leads";
 
   const [projects, setProjects] = useState([]);
   const [filtered, setFiltered] = useState([]);
@@ -60,11 +52,12 @@ export default function Projects() {
 
   const fetchProjects = async () => {
     const snap = await getDocs(collection(db, "projects"));
-    setProjects(
-      snap.docs
-        .filter((d) => (!leadsVisible ? d.data().isLead === true : d.data().isLead === false))
-        .map((d) => ({ id: d.id, ...d.data() }))
-    );
+
+    const data = snap.docs
+      .filter((d) => d.data().isLead === leadsVisible)
+      .map((d) => ({ id: d.id, ...d.data() }));
+
+    setProjects(data);
   };
 
   useEffect(() => {
@@ -73,11 +66,17 @@ export default function Projects() {
   }, []);
 
   useEffect(() => {
+   
+    if(projects.length == 0) fetchProjects()
+  }, [projects.length])
+
+  useEffect(() => {
     fetchProjects();
   }, [location.pathname])
 
   // ===== FILTER + SORT =====
   useEffect(() => {
+     
     let data = [...projects];
 
     if (role === "EMPLOYEE") {

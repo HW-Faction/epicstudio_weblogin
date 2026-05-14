@@ -6,6 +6,7 @@ import {
   RecaptchaVerifier,
   signInWithPhoneNumber,
 } from "firebase/auth";
+import logo from "../../public/logo.png"
 
 import { useAuth } from "../context/AuthContext";
 import { useEffect } from "react";
@@ -105,11 +106,9 @@ export default function Login() {
       <div className="w-full max-w-md bg-white shadow-lg rounded-xl p-8">
 
         {/* Logo */}
-        <div className="text-center mb-6">
-          <div className="text-3xl font-bold text-primary">
-            EpicStudio
-          </div>
-          <p className="text-gray-500 text-sm mt-1">
+        <div className="flex flex-col items-center mb-6">
+          <img src={logo} alt="logo" className="h-36 w-44 mb-3" />
+          <p className="text-gray-500 text-sm">
             Manage your projects efficiently
           </p>
         </div>
