@@ -135,6 +135,7 @@ export default function Users() {
   const activeCount = users.filter((u) => u.status === "ACTIVE").length;
   const disabledCount = users.filter((u) => u.status === "DISABLED").length;
 
+
   return (
     <div className="p-6 space-y-6">
 

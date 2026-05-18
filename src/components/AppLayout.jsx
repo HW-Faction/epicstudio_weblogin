@@ -21,7 +21,7 @@ export default function AppLayout({ children }) {
 
   const name = dbUser?.name || user?.displayName || "User";
   const email = user?.email || dbUser?.email || "No Email";
-  const role = dbUser?.role || "EMPLOYEE";
+  const role = dbUser?.role || "CLIENT";
 
   const today = new Date().toLocaleDateString(undefined, {
     weekday: "long",
@@ -81,13 +81,15 @@ export default function AppLayout({ children }) {
 
           {/* NAVIGATION */}
           <div className="p-3 space-y-1">
-            {navItem("/dashboard", "Dashboard", LayoutDashboardIcon)}
-            {navItem("/leads", "Leads", MagnetIcon)}
+            {role == "Admin" ? navItem("/dashboard", "Dashboard", LayoutDashboardIcon) : <></>}
+            { role == "Admin" ? navItem("/leads", "Leads", MagnetIcon) : <></> }
+           
             {navItem("/projects", "Projects", Folder)}
             {navItem("/tasks", "Tasks", CheckSquare)}
-            {navItem("/vendors", "Vendors", Truck)}
-            {navItem("/users", "Users", Users)}
-            {navItem("/settings", "Settings", Settings)}
+           { role == "Admin" ? navItem("/vendors", "Vendors", Truck) : <></> }
+            { role == "Admin" ? navItem("/users", "Users", Users) : <></> }
+            { role == "Admin" ? navItem("/settings", "Settings", Settings) : <></> }
+            
           </div>
         </div>
 

@@ -70,6 +70,16 @@ const setupRecaptcha = async () => {
   }
 };
 
+const normalizePhone = (value) => {
+  const digits = value.replace(/\D/g, ""); // keep only numbers
+
+  if (digits.length === 10) return `+91${digits}`;       // local Indian number
+  if (digits.length === 12 && digits.startsWith("91")) return `+${digits}`;
+  if (value.startsWith("+")) return `+${digits}`;
+
+  return value;
+};
+
   // 🔥 SEND OTP
   const handleSendOtp = async () => {
     setError("");
@@ -77,10 +87,10 @@ const setupRecaptcha = async () => {
 
     try {
       setupRecaptcha();
-
+      const formattedPhone = normalizePhone(phone);
       const result = await signInWithPhoneNumber(
         auth,
-        phone,
+        formattedPhone,
         window.recaptchaVerifier
       );
 
@@ -164,7 +174,7 @@ const setupRecaptcha = async () => {
               <>
                 <input
                   type="text"
-                  placeholder="+91XXXXXXXXXX"
+                  placeholder="XXXXXXXXXX"
                   className="w-full border rounded-lg px-4 py-2 focus:ring-2 focus:ring-primary outline-none"
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
