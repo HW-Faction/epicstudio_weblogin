@@ -56,13 +56,19 @@ export default function Login() {
   };
 
   // 🔥 SETUP RECAPTCHA
-  const setupRecaptcha = () => {
+const setupRecaptcha = async () => {
+  if (!window.recaptchaVerifier) {
     window.recaptchaVerifier = new RecaptchaVerifier(
+      auth,
       "recaptcha-container",
-      { size: "invisible" },
-      auth
+      {
+        size: "invisible",
+      }
     );
-  };
+
+    await window.recaptchaVerifier.render();
+  }
+};
 
   // 🔥 SEND OTP
   const handleSendOtp = async () => {
@@ -191,7 +197,7 @@ export default function Login() {
             )}
 
             {/* Recaptcha container */}
-            <div id="recaptcha-container"></div>
+            
           </div>
         )}
 
@@ -211,6 +217,7 @@ export default function Login() {
         </div>
 
       </div>
+      <div id="recaptcha-container"></div>
     </div>
   );
 }
