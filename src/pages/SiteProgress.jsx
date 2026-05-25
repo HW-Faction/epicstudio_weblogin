@@ -30,7 +30,7 @@ export default function SiteProgress() {
   const { id } = useParams();
   const { dbUser } = useAuth();
 
-  const isClient = dbUser?.role === "CLIENT";
+  const isClient = dbUser?.role === "Client";
   
 
   const [project, setProject] = useState(null);

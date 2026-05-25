@@ -41,15 +41,15 @@ export default function Dashboard() {
       const vendorSnap = await getDocs(collection(db, "vendors"));
       let vendorData = vendorSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
 
-      if (role === "EMPLOYEE") {
+      if (role === "Employee") {
         taskData = taskData.filter((t) => t.taskAssignedTo?.includes(user.uid));
         projectData = projectData.filter((p) => p.projectAssignedTo?.includes(user.uid));
       }
 
-      if (role === "CLIENT") {
-        const phone = dbUser?.phone;
+      if (role === "Client") {
+        const phone = dbUser?.number;
         projectData = projectData.filter(
-          (p) => p.clientContactDetails?.clientNumber === phone
+          (p) => p.clientContactDetails?.clientNumber === num
         );
         taskData = taskData.filter((t) =>
           projectData.some((p) => p.projectId === t.projectId)
@@ -80,7 +80,9 @@ export default function Dashboard() {
   const todayTasks = tasks.filter((t) => isToday(t.taskDueDate));
   const overdueTasks = tasks.filter((t) => isOverdue(t.taskDueDate));
 
-  return (
+  
+return (
+  
     <div className="space-y-6">
       {/* KPI */}
       <div className="grid grid-cols-4 gap-4">
@@ -123,7 +125,8 @@ export default function Dashboard() {
       </div>
     </div>
   );
-}
+  }
+
 
 // ===== COMPONENTS =====
 function Card({ title, value, icon: Icon, danger, link }) {

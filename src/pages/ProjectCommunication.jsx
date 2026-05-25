@@ -36,8 +36,8 @@ export default function ProjectCommunication() {
 
   const [typingUsers, setTypingUsers] = useState([]);
 
-  const role = dbUser?.role || "EMPLOYEE";
-  const isClient = role === "CLIENT";
+  const role = dbUser?.role || "Employee";
+  const isClient = role === "Client";
 
   useEffect(() => {
       const fetchProject = async () => {     
@@ -153,7 +153,8 @@ export default function ProjectCommunication() {
       />
 
       {/* TABS */}
-      <div className="flex gap-2 mt-4 mb-4">
+       {
+        isClient ? <></> : <div className="flex gap-2 mt-4 mb-4">
         {["CLIENT_VISIBLE", "INTERNAL"].map((t) => (
           <button
             key={t}
@@ -168,6 +169,8 @@ export default function ProjectCommunication() {
           </button>
         ))}
       </div>
+      }
+      
 
       {/* CHAT */}
       <div className="flex-1 overflow-y-auto space-y-4">

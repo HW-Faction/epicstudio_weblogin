@@ -12,7 +12,7 @@ import {
 export default function QuickActions({ role }) {
   const navigate = useNavigate();
 
-  if (role === "EMPLOYEE" || role === "CLIENT") return null;
+  if (role === "Employee" || role === "Client") return null;
 
   return (
     <div className="relative z-10 bg-white p-4 rounded-xl border shadow-sm space-y-3">
@@ -34,7 +34,7 @@ export default function QuickActions({ role }) {
         + Add Task
       </button>
 
-      {role === "ADMIN" && (
+      {role === "Admin" && (
         <button
           type="button"
           className="w-full border py-2 rounded-lg text-sm font-medium"
