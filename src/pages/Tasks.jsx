@@ -8,6 +8,7 @@ import {
   addDoc,
   updateDoc,
   doc,
+  deleteDoc
 } from "firebase/firestore";
 
 import NavigationHeader from "../components/NavigationHeader";
@@ -158,6 +159,14 @@ export default function Tasks() {
   });
   setShowModal(true);
 };
+
+const handleDelete = async () => {
+    await deleteDoc(doc(db, "tasks", editingTask.id));
+    alert("task deleted!")
+    setShowModal(false)
+    setEditingTask(null);
+    fetchAll();
+  };
 
 const openEdit = (task) => {
   setEditingTask(task);
@@ -536,6 +545,13 @@ const toggleUser = (id) => {
           className="px-4 py-2 bg-primary text-white rounded-lg"
         >
           Save
+        </button>
+
+         <button
+          onClick={handleDelete}
+          className="px-4 py-2 border  bg-red-500 text-white rounded-lg"
+        >
+          Delete Task Permanently
         </button>
 
       </div>

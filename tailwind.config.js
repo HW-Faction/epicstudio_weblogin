@@ -7,7 +7,8 @@ export default {
         secondary: "#B4806C",
         accent: "#10B981",
         dark: "#0F172A",
-        light: "#F8FAFC"
+        light: "#F8FAFC",
+        fade: "#AAB4A46C"
       },
       fontFamily: {
         sans: ["Montserrat", "sans-serif"],

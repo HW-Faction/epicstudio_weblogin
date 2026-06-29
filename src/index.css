@@ -26,3 +26,18 @@ html, body, #root {
     display: none !important;
   }
 }
+
+/* Hide scrollbar completely */
+.no-scrollbar::-webkit-scrollbar {
+  width: 0px;
+  height: 0px;
+}
+
+.no-scrollbar::-webkit-scrollbar-thumb {
+  background: transparent;
+}
+
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}

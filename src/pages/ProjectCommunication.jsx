@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useParams } from "react-router-dom";
 import { db, storage } from "../firebase";
 import { useAuth } from "../context/AuthContext";
@@ -38,6 +38,15 @@ export default function ProjectCommunication() {
 
   const role = dbUser?.role || "Employee";
   const isClient = role === "Client";
+
+  const chatRef = useRef(null);
+  const bottomRef = useRef(null);
+
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({
+      behavior: "smooth",
+    });
+  }, [messages]);
 
   useEffect(() => {
       const fetchProject = async () => {     
@@ -173,7 +182,18 @@ export default function ProjectCommunication() {
       
 
       {/* CHAT */}
-      <div className="flex-1 overflow-y-auto space-y-4">
+      <div
+        ref={chatRef}
+        className="
+          flex-1
+          overflow-y-auto
+          px-4 py-5
+          space-y-4
+          border
+          no-scrollbar
+          rounded-2xl
+          bg-gradient-to-b from-zinc-50 to-zinc-100"
+      >
 
         {filtered.map((msg) => {
           const isMe = msg.senderId === user.uid;
@@ -185,29 +205,24 @@ export default function ProjectCommunication() {
                 isMe ? "justify-end" : "justify-start"
               }`}
             >
-              {!isMe && (
-                <div className="w-8 h-8 rounded-full bg-gray-300 flex items-center justify-center text-xs">
-                  {getInitial(msg.senderName)}
-                </div>
-              )}
-
+              
               <div
-                className={`max-w-[65%] px-4 py-3 rounded-2xl ${
+                className={`max-w-[65%] px-4 py-2 rounded-2xl ${
                   isMe
-                    ? "bg-primary text-white"
+                    ? "bg-white text-black border"
                     : "bg-white border"
                 }`}
               >
-                <p className="text-xs opacity-60 mb-1">
+                <p className="text-[10px] opacity-60 mb-1">
                   {msg.senderName}
                 </p>
 
-                {msg.message && <p>{msg.message}</p>}
+                {msg.message && <p className="text-[13px] font-medium" >{msg.message}</p>}
 
                 {msg.fileUrl && (
-                  <div className="mt-2">
+                  <div className="mt-1">
                     {msg.type === "IMAGE" && (
-                      <img src={msg.fileUrl} className="rounded-lg max-h-48" />
+                      <img src={msg.fileUrl} className="rounded-md max-h-48" />
                     )}
                     {msg.type === "VIDEO" && (
                       <video src={msg.fileUrl} controls className="max-h-48" />
@@ -220,20 +235,28 @@ export default function ProjectCommunication() {
                   </div>
                 )}
 
-                <p className="text-[10px] mt-2 text-right opacity-60">
+                <p className="text-[10px] mt-1 text-right opacity-60">
                   {new Date(msg.createdAt).toLocaleTimeString()}
                 </p>
               </div>
+
+              <div className="w-8 h-8 rounded-full bg-gray-300 flex items-center justify-center text-xs">
+                  {getInitial(msg.senderName)}
+                </div>
+
             </div>
           );
         })}
 
         {/* TYPING */}
-        {typingUsers.length > 0 && (
+        {/* {typingUsers.length > 0 && (
           <p className="text-xs text-gray-400">
             {typingUsers.map((u) => u.name).join(", ")} typing...
           </p>
-        )}
+        )} */}
+
+        {/* Bottom anchor */}
+        <div ref={bottomRef} />
       </div>
 
       {/* INPUT BAR */}
