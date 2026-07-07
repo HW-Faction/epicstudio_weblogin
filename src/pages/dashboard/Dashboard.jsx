@@ -89,7 +89,7 @@ return (
         <Card title="Projects" value={projects.length} icon={Folder} link="/projects" />
         <Card title="Today" value={todayTasks.length} icon={CheckCircle2} link="/projects" />
         <Card title="Overdue" value={overdueTasks.length} icon={AlertTriangle} link="/projects" danger />
-        { role == "Admin" ? <Card title="Vendors" value={vendors.length} icon={Users} link="/vendors" /> : <></>}
+        { role == "ADMIN" ? <Card title="Vendors" value={vendors.length} icon={Users} link="/vendors" /> : <></>}
       </div>
 
       {/* MAIN */}

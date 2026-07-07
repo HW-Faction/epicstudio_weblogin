@@ -81,14 +81,14 @@ export default function AppLayout({ children }) {
 
           {/* NAVIGATION */}
           <div className="p-3 space-y-1">
-            {role == "Admin" ? navItem("/dashboard", "Dashboard", LayoutDashboardIcon) : <></>}
-            { role == "Admin" ? navItem("/leads", "Leads", MagnetIcon) : <></> }
+            {role == "ADMIN" ? navItem("/dashboard", "Dashboard", LayoutDashboardIcon) : <></>}
+            { role == "ADMIN" ? navItem("/leads", "Leads", MagnetIcon) : <></> }
            
             {navItem("/projects", "Projects", Folder)}
             {navItem("/tasks", "Tasks", CheckSquare)}
-           { role == "Admin" ? navItem("/vendors", "Vendors", Truck) : <></> }
-            { role == "Admin" ? navItem("/users", "Users", Users) : <></> }
-            { role == "Admin" ? navItem("/settings", "Settings", Settings) : <></> }
+           { role == "ADMIN" ? navItem("/vendors", "Vendors", Truck) : <></> }
+            { role == "ADMIN" ? navItem("/users", "Users", Users) : <></> }
+            { role == "ADMIN" ? navItem("/settings", "Settings", Settings) : <></> }
             
           </div>
         </div>
