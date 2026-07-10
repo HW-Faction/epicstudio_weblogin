@@ -39,10 +39,10 @@ export default function Projects() {
   const [confirm, setConfirm] = useState(null);
   const [snackbar, setSnackbar] = useState(null);
 
-  const role = dbUser?.role || "Employee";
+  const role = dbUser?.role || "EMPLOYEE";
   const uid = user?.uid;
 
-  const isAdmin = role === "Admin" || role === "Manager";
+  const isAdmin = role === "ADMIN" || role === "MANAGER";
 
   // ===== FETCH =====
   const fetchUsers = async () => {
@@ -79,13 +79,13 @@ export default function Projects() {
      
     let data = [...projects];
 
-    if (role === "Employee") {
+    if (role === "EMPLOYEE") {
       data = data.filter((p) =>
         (p.projectAssignedTo || []).includes(uid)
       );
     }
 
-    if (role === "Client") {
+    if (role === "CLIENT") {
       data = data.filter(
         (p) =>
           p.clientContactDetails?.clientNumber === dbUser?.number

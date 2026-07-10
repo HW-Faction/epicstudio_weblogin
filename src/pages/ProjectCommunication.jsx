@@ -36,8 +36,8 @@ export default function ProjectCommunication() {
 
   const [typingUsers, setTypingUsers] = useState([]);
 
-  const role = dbUser?.role || "Employee";
-  const isClient = role === "Client";
+  const role = dbUser?.role || "EMPLOYEE";
+  const isClient = role === "CLIENT";
 
   const chatRef = useRef(null);
   const bottomRef = useRef(null);

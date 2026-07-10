@@ -30,8 +30,8 @@ export default function Vendors() {
   const [confirm, setConfirm] = useState(null);
   const [snackbar, setSnackbar] = useState(null);
 
-  const role = dbUser?.role || "Employee";
-  const isAdmin = role === "Admin" || role === "Manager";
+  const role = dbUser?.role || "EMPLOYEE";
+  const isAdmin = role === "ADMIN" || role === "MANAGER";
 
   // ===== FETCH =====
   const fetchVendors = async () => {

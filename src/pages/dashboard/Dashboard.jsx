@@ -41,12 +41,12 @@ export default function Dashboard() {
       const vendorSnap = await getDocs(collection(db, "vendors"));
       let vendorData = vendorSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
 
-      if (role === "Employee") {
+      if (role === "EMPLOYEE") {
         taskData = taskData.filter((t) => t.taskAssignedTo?.includes(user.uid));
         projectData = projectData.filter((p) => p.projectAssignedTo?.includes(user.uid));
       }
 
-      if (role === "Client") {
+      if (role === "CLIENT") {
         const phone = dbUser?.number;
         projectData = projectData.filter(
           (p) => p.clientContactDetails?.clientNumber === num
