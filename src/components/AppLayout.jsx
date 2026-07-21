@@ -12,7 +12,7 @@ import {
   LayoutDashboardIcon,
   MagnetIcon
 } from "lucide-react";
-import logo from "../../public/logo.png"
+import logo from "../../public/logo_white.png"
 
 export default function AppLayout({ children }) {
   const navigate = useNavigate();
@@ -42,8 +42,8 @@ export default function AppLayout({ children }) {
         to={to}
         className={`flex items-center gap-3 px-4 py-2 rounded-lg transition-all duration-200 ${
           active
-            ? "bg-primary text-white shadow"
-            : "text-gray-300 hover:bg-gray-700 hover:text-white"
+            ? "bg-gray-200 text-primary shadow"
+            : "text-gray-100 hover:bg-gray-300 hover:text-white"
         }`}
       >
         <Icon size={18} className="shrink-0" />
@@ -55,7 +55,7 @@ export default function AppLayout({ children }) {
   return (
     <div className="flex h-screen bg-gray-100">
       {/* SIDEBAR */}
-      <div className="w-64 bg-gray-900 text-white flex flex-col justify-between shadow-lg">
+      <div className="w-64 bg-primary text-white flex flex-col justify-between shadow-lg">
         <div>
           {/* LOGO */}
           <div className="w-full flex justify-center items-center">
@@ -63,24 +63,24 @@ export default function AppLayout({ children }) {
           </div>
 
           {/* USER INFO */}
-          <div className="p-4 border-b border-gray-800 flex items-center gap-3">
+          <div className="p-4 border-b border-gray-200 flex items-center gap-3">
             <img
               src={
                 dbUser?.photoURL ||
                 "https://ui-avatars.com/api/?name=" + encodeURIComponent(name)
               }
               alt="profile"
-              className="w-10 h-10 rounded-full object-cover border border-gray-700"
+              className="w-10 h-10 rounded-full object-cover border border-gray-500"
             />
             <div className="overflow-hidden">
               <div className="font-semibold truncate">{name}</div>
-              <div className="text-xs text-gray-400 truncate">{email}</div>
-              <div className="text-[10px] text-gray-500">{role}</div>
+              <div className="text-xs text-gray-200 truncate">{email}</div>
+              <div className="text-[10px] text-gray-300">{role}</div>
             </div>
           </div>
 
           {/* NAVIGATION */}
-          <div className="p-3 space-y-1">
+          <div className="p-3 space-y-1 py-4">
             {role == "ADMIN" ? navItem("/dashboard", "Dashboard", LayoutDashboardIcon) : <></>}
             { role == "ADMIN" ? navItem("/leads", "Leads", MagnetIcon) : <></> }
            
@@ -94,11 +94,11 @@ export default function AppLayout({ children }) {
         </div>
 
         {/* FOOTER */}
-        <div className="p-4 border-t border-gray-800 space-y-3">
-          <div className="text-xs text-gray-400">{today}</div>
+        <div className="p-4 border-t border-gray-200 space-y-3">
+          <div className="text-xs text-gray-300">{today}</div>
           <button
             onClick={handleLogout}
-            className="w-full flex items-center justify-center gap-2 bg-primary py-2 rounded-lg font-medium hover:opacity-90 transition"
+            className="w-full flex items-center justify-center gap-2 text-primary bg-gray-200 py-2 rounded-lg font-medium hover:opacity-90 transition"
           >
             <LogOut size={18} className="shrink-0" />
             <div>Logout</div>
