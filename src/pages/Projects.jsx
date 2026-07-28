@@ -6,6 +6,7 @@ import {
   getDocs,
   deleteDoc,
   doc,
+  writeBatch,
 } from "firebase/firestore";
 import { useAuth } from "../context/AuthContext";
 import ProjectModal from "../components/ProjectModal";

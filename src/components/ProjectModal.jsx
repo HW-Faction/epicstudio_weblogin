@@ -6,6 +6,7 @@ import {
   updateDoc,
   doc,
   getDocs,
+  setDoc 
 } from "firebase/firestore";
 import { useAuth } from "../context/AuthContext";
 
@@ -101,8 +102,41 @@ export default function ProjectModal({ isOpen, onClose, editingProject, refresh,
 
   // 🔥 Save
   const handleSave = async () => {
-    const payload = {
-      projectId: editingProject?.projectId || Date.now().toString(),
+    if (editingProject) {
+       const payload = {
+      projectId: editingProject?.projectId,
+      projectName: form.projectName,
+      projectOwner: form.projectOwner,
+      projectStage: form.projectStage,
+      projectScope: form.projectScope,
+      projectBudget: form.projectBudget,
+      isLead: isLead,
+
+      projectAssignedTo: form.projectAssignedTo
+        ? [form.projectAssignedTo]
+        : [],
+
+      projectTentativeStartDate: form.projectTentativeStartDate,
+      projectExpectedHandoverDate: form.projectExpectedHandoverDate,
+
+      projectDescription: form.projectDescription,
+      projectLatestRemarks: form.projectLatestRemarks,
+
+      projectCreatedBy: user?.uid || "",
+      projectCreatedTimeStamp: new Date().toISOString(),
+
+      clientContactDetails: {
+        clientName: form.clientName,
+        clientNumber: form.clientNumber,
+        clientPrimaryEmail: form.clientPrimaryEmail,
+      },
+    };
+      await updateDoc(doc(db, "projects", editingProject.id), payload);
+    } else {
+      const newDocRef = doc(collection(db, "projects"));
+
+       const payload = {
+      projectId: newDocRef.id,
       projectName: form.projectName,
       projectOwner: form.projectOwner,
       projectStage: form.projectStage,
@@ -130,15 +164,14 @@ export default function ProjectModal({ isOpen, onClose, editingProject, refresh,
       },
     };
 
-    if (editingProject) {
-      await updateDoc(doc(db, "projects", editingProject.id), payload);
-    } else {
-      await addDoc(collection(db, "projects"), payload);
+      await setDoc(newDocRef, payload);
     }
 
     refresh();
     onClose();
   };
+
+
 
   return (
     <div className="fixed inset-0 bg-black/40 flex justify-center items-center z-50">
@@ -147,6 +180,8 @@ export default function ProjectModal({ isOpen, onClose, editingProject, refresh,
         <h2 className="text-xl font-bold mb-4">
           {editingProject ? "Edit Project" : "New Project"}
         </h2>
+
+      
 
         {/* CONTACT */}
         <div className="mb-4">
