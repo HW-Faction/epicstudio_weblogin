@@ -379,12 +379,9 @@ function Editor({ quotation, onBack, onSave, p }) {
   const [sortOrder, setSortOrder] = useState("desc");
 
   const [categories, setCategories] = useState([]);
+  const [uniqueCategories, setUniqueCategories] = useState([ ...new Set(q.items.map((i) => i.category).filter(Boolean)),]);
   const [catModal, setCatModal] = useState(false);
   const [newCat, setNewCat] = useState("");
-
-  const uniqueCategories = [
-      ...new Set(q.items.map((i) => i.category).filter(Boolean)),
-    ];
 
   const filteredItems = (q.items || [])
   .filter((item) => {
@@ -435,8 +432,6 @@ function Editor({ quotation, onBack, onSave, p }) {
           +
         </button>
       </>
-
-
 
       {/* YOUR MODAL */}
       {openModal && (
@@ -947,13 +942,13 @@ function Editor({ quotation, onBack, onSave, p }) {
                     <button onClick={() => setCatModal(false)}>Cancel</button>
       
                     <button
+                    type="button"
                       onClick={() => {
-                        if (!newCat.trim()) return;
-      
+                       
                         const cat = newCat.trim();
       
-                        if (!categories.includes(cat)) {
-                          setCategories((prev) => [...prev, cat]);
+                        if (!uniqueCategories.includes(cat)) {
+                          setUniqueCategories((prev) => [...prev, cat]);
                         }
       
                         setForm((prev) => ({
