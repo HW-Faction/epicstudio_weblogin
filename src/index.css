@@ -68,3 +68,68 @@ html, body, #root {
     transform: translateY(0) scale(1);
   }
 }
+
+@media print {
+  /* Print only the quotation */
+  body * {
+    visibility: hidden;
+  }
+
+  #print-area,
+  #print-area * {
+    visibility: visible;
+  }
+
+  #print-area {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100% !important;
+    max-width: none !important;
+    margin: 0 !important;
+    padding: 10mm !important;
+    box-sizing: border-box;
+    overflow: visible !important;
+    height: auto !important;
+    max-height: none !important;
+  }
+
+  /* Let tables flow naturally across pages */
+  #print-area table {
+    width: 100%;
+    page-break-inside: auto;
+    border-collapse: collapse;
+  }
+
+  #print-area thead {
+    display: table-header-group;
+  }
+
+  #print-area tr {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  /* Avoid clipping long content */
+  #print-area div,
+  #print-area p {
+    overflow: visible;
+  }
+
+  /* Keep headings with the content that follows */
+  #print-area h3 {
+    break-after: avoid;
+    page-break-after: avoid;
+  }
+
+  /* Hide buttons and other editor-only controls */
+  #print-area button,
+  #print-area textarea {
+    display: none !important;
+  }
+
+  @page {
+    size: A4;
+    margin: 8mm;
+  }
+}

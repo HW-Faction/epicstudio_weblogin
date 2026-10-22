@@ -213,7 +213,7 @@ function Editor({ quotation, onBack, onSave, p }) {
     name: true, area: true, category: true, description: true, specification: true
   });
   const [columnConfig, setColumnConfig] = useState({
-    sNo: true, description: true, uom: true, usp: true, qty: true, total: true, disc: true
+    sNo: true, description: true, uom: true, usp: true, qty: true, gst:true, total: true, disc: true
   });
   
   const [form, setForm] = useState({
@@ -225,7 +225,8 @@ function Editor({ quotation, onBack, onSave, p }) {
     uom: "",
     usp: "",
     total: "0",
-    discount: "0"
+    discount: "0",
+    gst: ""
   });
 
   const [open, setOpen] = useState(null); // "rows" | "columns" | null
@@ -322,8 +323,9 @@ function Editor({ quotation, onBack, onSave, p }) {
       desctiption: "",
       uom: "",
       usp: "",
-      total: "0",
-      discount: "0",
+      total: "",
+      discount: "",
+      gst: "",
       itemCode: "",
       specification: "",
     });
@@ -358,6 +360,7 @@ function Editor({ quotation, onBack, onSave, p }) {
           specification: "",
           area: "",
           itemCode: "",
+          gst: 0
         },
       ],
     });
@@ -367,9 +370,12 @@ function Editor({ quotation, onBack, onSave, p }) {
     const qty = Number(form.quantity || 0);
     const usp = Number(form.usp || 0);
     const discount = Number(form.discount || 0);
+    const gst = Number(form.gst || 0);
 
-    const total = qty * usp - discount;
-    return total > 0 ? total : 0;
+    const taxableAmount = Math.max(0, qty * usp - discount);
+    const gstAmount = taxableAmount * gst / 100;
+
+    return taxableAmount + gstAmount;
   };
 
   const [openModal, setOpenModal] = useState(false);
@@ -525,11 +531,20 @@ function Editor({ quotation, onBack, onSave, p }) {
             />
 
             <input
-              placeholder="Discount"
+              placeholder="Discount (₹)"
               className="border p-2 col-span-3"
               value={form.discount || ""}
               onChange={(e) =>
                 setForm({ ...form, discount: e.target.value })
+              }
+            />
+
+            <input
+              placeholder="Gst (Percentage)"
+              className="border p-2 col-span-3"
+              value={form.gst || ""}
+              onChange={(e) =>
+                setForm({ ...form, gst: e.target.value })
               }
             />
           </div>
@@ -574,7 +589,7 @@ function Editor({ quotation, onBack, onSave, p }) {
       </div>
 
       {view === "PREVIEW" && (
-        <div id="print-area" className="bg-white px-16 py-8 w-[75%] max-w-5xl mx-auto text-sm">
+        <div id="print-area" className="bg-white px-16 py-8 w-[90%] max-w-5xl mx-auto text-sm">
 
           {/* <button onClick={onBack} className="mb-4">← Back</button> */}
 
@@ -681,6 +696,7 @@ function Editor({ quotation, onBack, onSave, p }) {
                 { columnConfig.usp && (<th className="text-center">USP</th>) }
                 { columnConfig.qty && (<th className="text-center">Qty</th>) }
                 { columnConfig.disc && (<th className="text-center">Disc</th>) }
+                { columnConfig.gst && (<th className="text-center">Gst</th>) }
                 { columnConfig.total && (<th className="text-center">Total</th>) }
                 { columnConfig.total && (<th className="text-center">Action</th>) }
               </tr>
@@ -716,7 +732,8 @@ function Editor({ quotation, onBack, onSave, p }) {
                   { columnConfig.uom && (<td className="text-center">{item.uom}</td>) }
                   { columnConfig.usp && (<td className="text-center">{item.usp}</td>) }
                   { columnConfig.qty && (<td className="text-center">{item.quantity}</td>) }
-                  { columnConfig.disc && (<td className="text-center">{item.discount}</td>) }
+                  { columnConfig.disc && (<td className="text-center">₹ {item.discount}</td>) }
+                  { columnConfig.gst && (<td className="text-center">{item.gst} %</td>) }
                   { columnConfig.total && (<td className="text-center">₹ {item.total}</td>) }
                   <td onClick={() => openEditItem(item)} className="text-center text-red-600">Edit </td>
                   
@@ -751,10 +768,11 @@ function Editor({ quotation, onBack, onSave, p }) {
           {/* SUMMARY */}
           <div className="mt-6 ">
             <div className="w-full border p-4">
-              <div className="flex justify-between"><span>Subtotal</span><span>₹ {formatCurrency(q.summary.subtotal)}</span></div>
-              <div className="flex justify-between"><span>Discount</span><span>₹ {q.summary.totalDiscount}</span></div>
-              <div className="flex justify-between font-bold border-t mt-2 pt-2">
-                <span>Total</span><span>₹ {formatCurrency(q.summary.finalTotal)}</span>
+              {/* <div className="flex justify-between"><span>Subtotal</span><span>₹ {formatCurrency(q.summary.subtotal)}</span></div>
+              <div className="flex justify-between"><span>Discount</span><span>₹ {formatCurrency(q.summary.totalDiscount)}</span></div>
+              <div className="flex justify-between"><span>Gst rate</span><span>{formatCurrency(q.summary.gst)} %</span></div> */}
+              <div className="flex justify-between border-t mt-2 pt-2">
+                <span><p className="font-bold">Total</p><p>(After discounts and gst)</p></span><span className="font-bold">₹ {formatCurrency(q.summary.finalTotal)}</span>
               </div>
             </div>
           </div>
@@ -798,13 +816,24 @@ function Editor({ quotation, onBack, onSave, p }) {
           </div>
 
           {/* TERMS */}
-          <h3 className="mt-8 font-semibold border-b pb-1">Terms</h3>
+          <h3 className="mt-8 font-semibold border-b pb-1 print:mt-4">
+            Terms
+          </h3>
+
+          {/* Editable version: visible on screen, hidden in PDF */}
           <textarea
             value={q.terms.join("\n")}
-            onChange={(e)=>setQ({...q,terms:e.target.value.split("\n")})}
-            className="w-full border mt-2"
+            onChange={(e) =>
+              setQ({ ...q, terms: e.target.value.split("\n") })
+            }
+            className="w-full border mt-2 p-2 print:hidden"
             rows={6}
           />
+
+          {/* Printable version: expands to show every term */}
+          <div className="hidden print:block mt-2 whitespace-pre-wrap break-words">
+            {q.terms.join("\n")}
+          </div>
 
           {/* ACTION */}
           <div className="mt-6">
@@ -977,12 +1006,22 @@ function Editor({ quotation, onBack, onSave, p }) {
 
 function calcItem(old, data) {
   const i = { ...old, ...data };
-  return (i.usp || 0) * (i.quantity || 0) - (i.discount || 0);
+
+  const qty = Number(i.quantity || 0);
+  const usp = Number(i.usp || 0);
+  const discount = Number(i.discount || 0);
+  const gst = Number(i.gst || 0);
+
+  const taxableAmount = Math.max(0, qty * usp - discount);
+  const gstAmount = taxableAmount * gst / 100;
+
+  return taxableAmount + gstAmount;
 }
 
 function calculateQuotation(q) {
   const subtotal = q.items.reduce((s, i) => s + (i.total || 0), 0);
   const totalDiscount = q.items.reduce((s, i) => s + (i.discount || 0), 0);
+  const gst = q.items.reduce((s, i) => s + (i.discount || 0), 0);
 
   return {
     ...q,
@@ -990,6 +1029,7 @@ function calculateQuotation(q) {
       subtotal,
       totalDiscount,
       finalTotal: subtotal,
+      gst
     },
   };
 }
@@ -1003,7 +1043,7 @@ function newQuotation() {
     items: [],
     paymentPlan: [],
     bankDetails: DEFAULT_BANK,
-    summary: { subtotal: 0, totalDiscount: 0, finalTotal: 0 },
+    summary: { subtotal: 0, totalDiscount: 0, finalTotal: 0, gst: 0 },
     terms: DEFAULT_TERMS,
     version: 1,
     state: "Created",
