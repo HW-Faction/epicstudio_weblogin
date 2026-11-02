@@ -23,6 +23,23 @@ import { Rows3Icon, Columns3Icon, DeleteIcon, Grip, Edit } from 'lucide-react'
 import NavigationHeader from "../components/NavigationHeader";
 import ProjectNavigationChips from "../components/ProjectNavigationChips";
 import TabSwitch from "../components/TabSwitch";
+import {
+  DndContext,
+  closestCenter,
+  PointerSensor,
+  useSensor,
+  useSensors,
+} from "@dnd-kit/core";
+
+import {
+  SortableContext,
+  useSortable,
+  verticalListSortingStrategy,
+  arrayMove,
+} from "@dnd-kit/sortable";
+
+import { CSS } from "@dnd-kit/utilities";
+
 
 /* ================= DEFAULTS ================= */
 
@@ -229,6 +246,7 @@ function Editor({ quotation, onBack, onSave, p }) {
     gst: ""
   });
 
+
   const [open, setOpen] = useState(null); // "rows" | "columns" | null
   const ref = useRef();
 
@@ -394,13 +412,60 @@ const deleteItemfromQuotation = (item) => {
   const [openModal, setOpenModal] = useState(false);
   const [search, setSearch] = useState("");
   const [filterCategory, setFilterCategory] = useState("");
-  const [sortBy, setSortBy] = useState("date");
+  const [sortBy, setSortBy] = useState("manual");
   const [sortOrder, setSortOrder] = useState("desc");
 
   const [categories, setCategories] = useState([]);
   const [uniqueCategories, setUniqueCategories] = useState([ ...new Set(q.items.map((i) => i.category).filter(Boolean)),]);
   const [catModal, setCatModal] = useState(false);
   const [newCat, setNewCat] = useState("");
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 5,
+      },
+    })
+  );
+
+  const handleDragEnd = ({ active, over }) => {
+    if (!over || active.id === over.id) return;
+
+    const oldIndex = filteredItems.findIndex(
+      (item) => item.id === active.id
+    );
+
+    const newIndex = filteredItems.findIndex(
+      (item) => item.id === over.id
+    );
+
+    if (oldIndex === -1 || newIndex === -1) return;
+
+    const reorderedFilteredItems = arrayMove(
+      filteredItems,
+      oldIndex,
+      newIndex
+    );
+
+    const filteredIds = new Set(
+      filteredItems.map((item) => item.id)
+    );
+
+    setQ((prev) => {
+      let reorderedIndex = 0;
+
+      const updatedItems = prev.items.map((item) =>
+        filteredIds.has(item.id)
+          ? reorderedFilteredItems[reorderedIndex++]
+          : item
+      );
+
+      return {
+        ...prev,
+        items: updatedItems,
+      };
+    });
+  };
 
   const filteredItems = (q.items || [])
   .filter((item) => {
@@ -418,6 +483,7 @@ const deleteItemfromQuotation = (item) => {
   .sort((a, b) => {
     let valA, valB;
 
+    if (sortBy === "manual") return 0;
     if (sortBy === "amount") {
       valA = Number(a.total || a.qty * a.usp || 0);
       valB = Number(b.total || b.qty * b.usp || 0);
@@ -906,6 +972,7 @@ const deleteItemfromQuotation = (item) => {
             >
               <option value="date">Sort by Date</option>
               <option value="amount">Sort by Amount</option>
+              <option value="manual">Manual Order</option>
             </select>
 
             {/* ORDER */}
@@ -942,9 +1009,41 @@ const deleteItemfromQuotation = (item) => {
             </thead>
 
             <tbody>
-              {filteredItems.map((item, i) => (
-                <tr key={item.id} className="border-t">
-                  <td className="w-[1%] ms-1"><Grip /></td>   
+              <DndContext
+                sensors={sensors}
+                collisionDetection={closestCenter}
+                onDragEnd={handleDragEnd}
+              >
+                <SortableContext
+                  items={filteredItems.map((item) => item.id)}
+                  strategy={verticalListSortingStrategy}
+                >
+                  {filteredItems.map((item, i) => (
+                    <SortableItemRow key={item.id} id={item.id}>
+                      {({
+                        setNodeRef,
+                        setActivatorNodeRef,
+                        attributes,
+                        listeners,
+                        style,
+                      }) => (
+                        <tr
+                          ref={setNodeRef}
+                          style={style}
+                          className="border-t"
+                        >
+                          <td className="w-[1%] ms-1">
+                            <button
+                              type="button"
+                              ref={setActivatorNodeRef}
+                              {...attributes}
+                              {...listeners}
+                              className="cursor-grab active:cursor-grabbing touch-none"
+                              title="Drag to reorder"
+                            >
+                              <Grip />
+                            </button>
+                          </td>  
                   { columnConfig.sNo && (<th className="ms-4 text-center">{i + 1}</th> ) }
                   { columnConfig.description && (
                     <td className="w-[50%] p-4">
@@ -988,8 +1087,12 @@ const deleteItemfromQuotation = (item) => {
                         Delete
                       </button>
                   </td>
-                </tr>
-              ))}
+                            </tr>
+                      )}
+                    </SortableItemRow>
+                  ))}
+                </SortableContext>
+              </DndContext>
             </tbody>
           </table>
         </div>
@@ -1039,6 +1142,34 @@ const deleteItemfromQuotation = (item) => {
             )}
     </div>
   );
+}
+
+function SortableItemRow({ id, children }) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    setActivatorNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+    position: "relative",
+    zIndex: isDragging ? 10 : 0,
+  };
+
+  return children({
+    setNodeRef,
+    setActivatorNodeRef,
+    attributes,
+    listeners,
+    style,
+  });
 }
 
 /* ================= LOGIC ================= */
