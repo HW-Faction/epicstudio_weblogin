@@ -284,6 +284,19 @@ function Editor({ quotation, onBack, onSave, p }) {
     setQ({ ...q, items });
   };
 
+  
+const deleteItemfromQuotation = (item) => {
+  if (!window.confirm(`Delete "${item.name || item.description}"?`)) {
+    return;
+  }
+
+  setQ((prev) => ({
+    ...prev,
+    items: prev.items.filter((i) => i.id !== item.id),
+  }));
+};
+
+
   const handleSaveItem = () => {
     const itemData = {
       ...form,
@@ -698,7 +711,7 @@ function Editor({ quotation, onBack, onSave, p }) {
                 { columnConfig.disc && (<th className="text-center">Disc</th>) }
                 { columnConfig.gst && (<th className="text-center">Gst</th>) }
                 { columnConfig.total && (<th className="text-center">Total</th>) }
-                { columnConfig.total && (<th className="text-center">Action</th>) }
+                { columnConfig.total && (<th className="text-center print:hidden">Action</th>) }
               </tr>
             </thead>
 
@@ -735,7 +748,20 @@ function Editor({ quotation, onBack, onSave, p }) {
                   { columnConfig.disc && (<td className="text-center">₹ {item.discount}</td>) }
                   { columnConfig.gst && (<td className="text-center">{item.gst} %</td>) }
                   { columnConfig.total && (<td className="text-center">₹ {item.total}</td>) }
-                  <td onClick={() => openEditItem(item)} className="text-center text-red-600">Edit </td>
+                  <td className="text-center print:hidden">
+                    <button
+                        onClick={() =>  openEditItem(item)}
+                        className="text-blue-500"
+                      >
+                        Edit
+                      </button>
+                      <button
+                        onClick={() => deleteItemfromQuotation(item)}
+                        className="text-red-500"
+                      >
+                        Delete
+                      </button>
+                  </td>
                   
                   {/* <td>
                     <textarea
@@ -948,7 +974,20 @@ function Editor({ quotation, onBack, onSave, p }) {
                   { columnConfig.qty && (<td className="text-center">{item.quantity}</td>) }
                   { columnConfig.disc && (<td className="text-center">{item.discount}</td>) }
                   { columnConfig.total && (<td className="text-center">₹ {item.total}</td>) }
-                  <td onClick={() => openEditItem(item)} className="text-center text-red-600">Edit </td>
+                  <td className="text-center">
+                    <button
+                        onClick={() =>  openEditItem(item)}
+                        className="text-blue-500"
+                      >
+                        Edit
+                      </button>
+                      <button
+                        onClick={() => deleteItemfromQuotation(item)}
+                        className="text-red-500"
+                      >
+                        Delete
+                      </button>
+                  </td>
                 </tr>
               ))}
             </tbody>
