@@ -133,3 +133,8 @@ html, body, #root {
     margin: 8mm;
   }
 }
+
+/* GLOBAL APP SIZE CONTROL */
+html {
+  font-size: 14px !important;
+}
