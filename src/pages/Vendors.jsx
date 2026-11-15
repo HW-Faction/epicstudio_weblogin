@@ -12,6 +12,7 @@ import VendorModal from "../components/VendorModal";
 import NavigationHeader from "../components/NavigationHeader";
 import ConfirmDialog from "../components/ConfirmDialog";
 import Snackbar from "../components/Snackbar";
+import { Edit, Trash2 } from 'lucide-react'
 
 export default function Vendors() {
   const { user, dbUser } = useAuth();
@@ -206,15 +207,23 @@ export default function Vendors() {
                       setEditingVendor(v);
                       setModalOpen(true);
                     }}
-                    className="text-blue-600"
+                    className="inline-flex items-center gap-1 px-1.5 py-1
+                            text-blue-600 bg-blue-50 hover:bg-blue-100
+                            border border-blue-100 rounded-lg text-xs font-medium
+                            transition-all duration-200"
                   >
+                    <Edit size={9} />
                     Edit
                   </button>
 
                   <button
                     onClick={() => setConfirm(v)}
-                    className="text-red-500"
+                    className="inline-flex items-center gap-1 px-1.5 py-1
+                            text-red-600 bg-red-50 hover:bg-red-100
+                            border border-red-100 rounded-lg text-xs font-medium
+                            transition-all duration-200"
                   >
+                    <Trash2 size={9} />
                     Delete
                   </button>
                 </>
